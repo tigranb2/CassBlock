@@ -49,6 +49,7 @@ func cassandraInit(CONNECT string){
 }
 
 func simulateWrites(gethWriteFrequency int) {
+	var latencies []int
 	fmt.Println("Generating data...")
 	randI := 0
 	for {
@@ -60,6 +61,7 @@ func simulateWrites(gethWriteFrequency int) {
 			cassandraWrite(data)
 			writeData := latencyTest(id, r)
 			fmt.Printf("Sensor: %v, Write: %v, write latency: %v\n", writeData.Sensor, writeData.Write, writeData.WriteLatency)
+			latencies = append(latencies, writeData.WriteLatency)
 		}
 
 		if r % gethWriteFrequency == 0 {
@@ -67,8 +69,13 @@ func simulateWrites(gethWriteFrequency int) {
 			//gethWrite("ws://10.0.0.1", "metadata")
 		}
 
+		if r == 100 {
+			break
+		}
 		time.Sleep(time.Duration(randI)*time.Millisecond) //sleeps for 1 - 3 seconds
 	}
+
+	fmt.Printf("Average write latency: %v\n", average(latencies))
 }
 
 func cassandraWrite(data message.Test_sensor) {
@@ -91,4 +98,13 @@ func gethWrite(connect, msg string){
 	if err != nil {
 		fmt.Println(err)
 	}
+}
+
+func average(arr []int) float32 {
+	sum := 0
+	for _, element := range arr {
+		sum += element
+	}
+
+	return float32(sum) / float32(len(arr))
 }
