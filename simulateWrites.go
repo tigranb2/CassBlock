@@ -1,6 +1,7 @@
 package main
 
 import (
+	"CassBlock/message"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,11 +11,13 @@ import (
 	"github.com/gocql/gocql"
 )
 
-/*
+/* 
+CREATE KEYSPACE test_keyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '1'};
+
 CREATE TABLE test_sensor (
      sensor_id int,
 	 write int,
-     write_time int,
+     local_write_time bigint,
      speed text,
      PRIMARY KEY ((sensor_id), write)
    ) ;
@@ -22,13 +25,6 @@ CREATE TABLE test_sensor (
 
 var Session *gocql.Session
 var r = 0 //how many times data for all sensors has been written
-
-type test_sensor struct {
-	sensor_id int
-	write int
-	write_time int64 //unix time of write, in nanoseconds 
-	speed string
-}
 
 func main() {
 	arguments := os.Args
@@ -60,7 +56,7 @@ func simulateWrites(gethWriteFrequency int) {
 		randI = rand.Intn(3000 - 1000) + 1000
 		for id := 1; id <= 5; id++ {
 			str := strconv.Itoa(randI/1000) //returns string of random int
-			data := test_sensor{id, r, time.Now().UnixNano()/1000, (str+"km")}
+			data := message.Test_sensor{Sensor_id: id, Write: r, Local_write_time: time.Now().UnixNano()/1000, Speed: (str+"km")}
 			cassandraWrite(data)
 			latencyTest(id, r)
 		}
@@ -74,24 +70,18 @@ func simulateWrites(gethWriteFrequency int) {
 	}
 }
 
-func cassandraWrite(data test_sensor) {
+func cassandraWrite(data message.Test_sensor) {
 	//create new row in test_table
-	if err := Session.Query("INSERT INTO test_sensor(sensor_id,write,write_time,speed) VALUES(?, ?, ?, ?)", data.sensor_id, data.write, data.write_time, data.speed).Exec(); err != nil {
+	if err := Session.Query("INSERT INTO test_sensor(sensor_id,write,local_write_time,speed) VALUES(?, ?, ?, ?)", data.Sensor_id, data.Write, data.Local_write_time, data.Speed).Exec(); err != nil {
 		fmt.Println(err)
 	}
 }
 
 func latencyTest(sensorId, write int) {
-	/*
-		Read data based on sensorId & write
-		Read WRITETIME of that row
-		Compare
-		Return write latency
-	*/
-
-	//var write_time int
-	query := Session.Query(`SELECT write_time FROM tweet WHERE sensor_id = ?, write = ?`, sensorId, write)
-	fmt.Println(query)
+	var local_write_time, WRITETIME int
+	Session.Query(`SELECT local_write_time FROM test_sensor WHERE sensor_id = ? AND write = ?`, sensorId, write).Scan(&local_write_time)
+	Session.Query(`SELECT WRITETIME FROM test_sensor WHERE sensor_id = ? AND write = ?`, sensorId, write).Scan(&WRITETIME)
+	fmt.Println(local_write_time, WRITETIME, WRITETIME - local_write_time)
 
 }
 
