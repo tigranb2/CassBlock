@@ -75,7 +75,7 @@ func simulateWrites(gethWriteFrequency int) {
 		time.Sleep(time.Duration(randI)*time.Millisecond) //sleeps for 1 - 3 seconds
 	}
 
-	fmt.Printf("Average write latency: %v\n", average(latencies))
+	fmt.Printf("Average write latency: %v microseconds\n", average(latencies))
 }
 
 func cassandraWrite(data message.Test_sensor) {
