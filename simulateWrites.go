@@ -58,7 +58,8 @@ func simulateWrites(gethWriteFrequency int) {
 			str := strconv.Itoa(randI/1000) //returns string of random int
 			data := message.Test_sensor{Sensor_id: id, Write: r, Local_write_time: time.Now().UnixNano()/1000, Speed: (str+"km")}
 			cassandraWrite(data)
-			latencyTest(id, r)
+			writeData := latencyTest(id, r)
+			fmt.Printf("Sensor: %v, Write: %v, write latency: %v\n", writeData.Sensor, writeData.Write, writeData.WriteLatency)
 		}
 
 		if r % gethWriteFrequency == 0 {
@@ -77,12 +78,11 @@ func cassandraWrite(data message.Test_sensor) {
 	}
 }
 
-func latencyTest(sensorId, write int) {
+func latencyTest(sensorId, write int) message.WriteData {
 	var local_write_time, WRITETIME int
 	Session.Query(`SELECT local_write_time FROM test_sensor WHERE sensor_id = ? AND write = ?`, sensorId, write).Scan(&local_write_time)
-	Session.Query(`SELECT WRITETIME FROM test_sensor WHERE sensor_id = ? AND write = ?`, sensorId, write).Scan(&WRITETIME)
-	fmt.Println(local_write_time, WRITETIME, WRITETIME - local_write_time)
-
+	Session.Query(`SELECT WRITETIME (local_write_time) FROM test_sensor WHERE sensor_id = ? AND write = ?`, sensorId, write).Scan(&WRITETIME)
+	return message.WriteData{Sensor: sensorId, Write: write, WriteLatency: (WRITETIME - local_write_time)}
 }
 
 func gethWrite(connect, msg string){
