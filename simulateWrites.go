@@ -92,7 +92,7 @@ func cassandraTest(data message.Test_sensor) {
 
 	s = time.Now().UnixNano()/1000
 	//read new row in test_table
-	if err := Session.Query(`SELECT speed FROM test_sensor WHERE sensor_id = ? AND write = ?`, data.Sensor_id, data.Write); err != nil {
+	if err := Session.Query(`SELECT speed FROM test_sensor WHERE sensor_id = ? AND write = ?`, data.Sensor_id, data.Write).Exec(); err != nil {
 		fmt.Println(err)
 	}	
 
