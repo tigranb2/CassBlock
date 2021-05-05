@@ -12,7 +12,7 @@ from mininet.cli import CLI
 
 from topos import *
 from config import conf
-# from geth import *
+from geth import *
 
 geth_write_frequency = int(argv[1])
 
@@ -81,6 +81,11 @@ def main():
     hs = topo.hosts(sort=True)
     hs = [net.getNodeByName(h) for h in hs]
     
+    delay_command(1, miner_start.format(
+        network_id=network_id, port=port, miner_thread=miner_thread
+    ))
+    sleep(20)
+
     delay_command(1, "./simulateWrites 5")
     
 
