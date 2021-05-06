@@ -65,7 +65,7 @@ func simulateWrites(gethWriteFrequency int) {
 
 		if r % gethWriteFrequency == 0 {
 			gethWR := message.Latencies{} //stores info for geth write & read
-			gethTest("ws://127.0.0.1:8101", "metadata", &gethWR)
+			gethTest("ws://10.0.0.1:8101", "metadata", &gethWR)
 			gethLatencies = append(gethLatencies, gethWR)
 			fmt.Printf("Go-Ethereum - write latency: %vμs, read latency: %vμs\n", gethWR.WriteLatency, gethWR.ReadLatency)
 		}
