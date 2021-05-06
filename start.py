@@ -15,7 +15,10 @@ from config import conf
 from geth import *
 
 geth_write_frequency = int(argv[1])
-status = int(argv[2]) 
+status = "rerun"
+
+if len(argv) > 2:
+    status = str(argv[2]) 
 
 def get_topology():
     # privateDirs = [('~/.ethereum', '~/%(name)s/.ethereum')]
