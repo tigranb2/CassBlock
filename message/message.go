@@ -1,7 +1,7 @@
 package message
 
 type Latencies struct {
-	WriteLatency, ReadLatency float32
+	WriteLatency, ReadLatency int
 }
 
 type Test_sensor struct {
