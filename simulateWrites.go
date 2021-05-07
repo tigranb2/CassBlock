@@ -83,25 +83,25 @@ func simulateWrites(gethWriteFrequency int) {
 }
 
 func cassandraTest(data *message.Test_sensor) {
-	s := float32(time.Now().UnixNano()/1000000)
+	s := time.Now().UnixNano()/1000000
 	//create new row in test_table
 	if err := Session.Query("INSERT INTO test_sensor(sensor_id,write,temperature,speed) VALUES(?, ?, ?, ?)", data.Sensor_id, data.Write, data.Temperature, data.Speed).Exec(); err != nil {
 		fmt.Println(err)
 	}
 
-	data.Latencies.WriteLatency = float32(time.Now().UnixNano()/1000000) - s
+	data.Latencies.WriteLatency = int(time.Now().UnixNano()/1000000 - s)
 
-	s = float32(time.Now().UnixNano()/1000000)
+	s = time.Now().UnixNano()/1000000
 	//read new row in test_table
 	if err := Session.Query(`SELECT speed FROM test_sensor WHERE sensor_id = ? AND write = ?`, data.Sensor_id, data.Write).Exec(); err != nil {
 		fmt.Println(err)
 	}	
 
-	data.Latencies.ReadLatency = float32(time.Now().UnixNano()/1000) - s
+	data.Latencies.ReadLatency = int(time.Now().UnixNano()/1000000 - s)
 }
 
 func gethTest(connect, msg string, gethWR *message.Latencies) {
-	s := float32(time.Now().UnixNano()/1000000)
+	s := time.Now().UnixNano()/1000000
 	//writes data into geth transaction
 	tx := fmt.Sprintf("eth.sendTransaction({from:eth.accounts[0],to:eth.accounts[0],value:1,data:web3.toHex('%v')})", msg)
 	output, err := exec.Command("geth", "attach", connect, "--exec", tx).CombinedOutput() 
@@ -111,19 +111,19 @@ func gethTest(connect, msg string, gethWR *message.Latencies) {
 	}
 
 	transactionID := string(output)
-	gethWR.WriteLatency =  float32(time.Now().UnixNano()/1000000) - s
+	gethWR.WriteLatency =  int(time.Now().UnixNano()/1000000 - s)
 
-	s = float32(time.Now().UnixNano()/1000000)
+	s = time.Now().UnixNano()/1000000
 	tx = fmt.Sprintf("eth.getTransaction(%v)", transactionID)
 	exec.Command("geth", "attach", connect, "--exec", tx).Run() 
 
-	gethWR.ReadLatency = float32(time.Now().UnixNano()/1000000) - s
+	gethWR.ReadLatency = int(time.Now().UnixNano()/1000000 - s)
 }
 
 
 
 func average(arr []message.Latencies) (float32, float32) {
-	var writeSum, readSum float32
+	var writeSum, readSum int
 	for _, element := range arr {
 		writeSum += element.WriteLatency
 		readSum += element.ReadLatency
