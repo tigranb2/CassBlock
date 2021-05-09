@@ -19,10 +19,10 @@ CREATE KEYSPACE test_keyspace WITH replication = {'class': 'SimpleStrategy', 're
 
 CREATE TABLE test_sensor (
      sensor_id int,
-	 write int,
+	 row int,
      temperature text,
      speed text,
-     PRIMARY KEY ((sensor_id), write)
+     PRIMARY KEY ((sensor_id), row)
    ) ;
 */
 
@@ -31,13 +31,13 @@ var Session *gocql.Session
 func main() {
 	arguments := os.Args
 	if len(arguments) < 2 {
-		fmt.Println("Please provide frequency for writing to Geth...")
+		fmt.Println("Please specify row count...")
 		return
 	}
-	gethWriteFrequency, _ := strconv.Atoi(arguments[1])
+	rowCount, _ := strconv.Atoi(arguments[1]) //numbers of rows per sensor
 
 	cassandraInit("127.0.0.1")
-	simulateWrites(gethWriteFrequency)
+	simulateWrites(rowCount)
 }
 
 func cassandraInit(CONNECT string){
@@ -53,17 +53,16 @@ func cassandraInit(CONNECT string){
 func simulateWrites(gethWriteFrequency int) {
 	var cassLatencies, gethLatencies []message.Latencies
 	s := []message.Test_sensor{}
-	r := 0 //how many times data for all sensors has been written
-	randI := 0
+	write, row, randI := 0, 0, 0
 	fmt.Println("Generating data...")
 	for {
-		r++
+		row++
 		randI = rand.Intn(3000 - 1000) + 1000
 		for id := 1; id <= 5; id++ {
 			str := strconv.Itoa(randI/1000) //returns string of random int
-			cassWR := message.Test_sensor{Sensor_id: id, Write: r, Temperature: (str+"km"), Speed: (str+"km"), Latencies: message.Latencies{}} //stores info for cassandra write & read 
+			cassWR := message.Test_sensor{Sensor_id: id, Row: row, Temperature: (str+"km"), Speed: (str+"km"), Latencies: message.Latencies{}} //stores info for cassandra write & read 
 			cassandraTest(&cassWR)
-			fmt.Printf("Sensor: %v, Write: %v, write latency: %vms, read latency: %vms\n", id, r, cassWR.Latencies.WriteLatency, cassWR.Latencies.ReadLatency)
+			fmt.Printf("Sensor: %v, Row: %v, write latency: %vms, read latency: %vms\n", id, row, cassWR.Latencies.WriteLatency, cassWR.Latencies.ReadLatency)
 			cassLatencies = append(cassLatencies, cassWR.Latencies)
 			s = append(s, cassWR)
 		}
@@ -75,9 +74,10 @@ func simulateWrites(gethWriteFrequency int) {
 			gethLatencies = append(gethLatencies, gethWR)
 			fmt.Printf("Go-Ethereum - write latency: %vms, read latency: %vms\n", gethWR.WriteLatency, gethWR.ReadLatency)
 			s = []message.Test_sensor{}
+			row = 0
 		}
 
-		if r == 100 {
+		if write == 100 {
 			break
 		}
 		time.Sleep(time.Duration(randI)*time.Millisecond) //sleeps for 1 - 3 seconds
@@ -92,7 +92,7 @@ func simulateWrites(gethWriteFrequency int) {
 func cassandraTest(data *message.Test_sensor) {
 	start := time.Now().UnixNano()/1000000
 	//create new row in test_table
-	if err := Session.Query("INSERT INTO test_sensor(sensor_id,write,temperature,speed) VALUES(?, ?, ?, ?)", data.Sensor_id, data.Write, data.Temperature, data.Speed).Exec(); err != nil {
+	if err := Session.Query("INSERT INTO test_sensor(sensor_id,write,temperature,speed) VALUES(?, ?, ?, ?)", data.Sensor_id, data.Row, data.Temperature, data.Speed).Exec(); err != nil {
 		fmt.Println(err)
 	}
 
@@ -100,7 +100,7 @@ func cassandraTest(data *message.Test_sensor) {
 
 	start = time.Now().UnixNano()/1000000
 	//read new row in test_table
-	if err := Session.Query(`SELECT speed FROM test_sensor WHERE sensor_id = ? AND write = ?`, data.Sensor_id, data.Write).Exec(); err != nil {
+	if err := Session.Query(`SELECT speed FROM test_sensor WHERE sensor_id = ? AND write = ?`, data.Sensor_id, data.Row).Exec(); err != nil {
 		fmt.Println(err)
 	}	
 
@@ -118,6 +118,7 @@ func gethTest(connect string, msg [32]byte, gethWR *message.Latencies) {
 	}
 
 	transactionID := string(output)
+	fmt.Println(transactionID)
 	gethWR.WriteLatency =  int(time.Now().UnixNano()/1000000 - start)
 
 	start = time.Now().UnixNano()/1000000

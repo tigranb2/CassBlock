@@ -1,5 +1,5 @@
 if [[ -z $1 ]]; then
-  echo "Please specify the geth write frequency"
+  echo "Please specify row count"
 else
   go build ./simulateWrites.go
   chmod 700 cassrun.sh
