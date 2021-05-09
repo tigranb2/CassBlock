@@ -2,12 +2,15 @@ package main
 
 import (
 	"CassBlock/message"
+	"bytes"
+	"encoding/gob"
 	"fmt"
 	"os"
 	"os/exec"
 	"time"
 	"math/rand"
 	"strconv"
+	"crypto/sha256"
 	"github.com/gocql/gocql"
 )
 
@@ -24,7 +27,6 @@ CREATE TABLE test_sensor (
 */
 
 var Session *gocql.Session
-var r = 0 //how many times data for all sensors has been written
 
 func main() {
 	arguments := os.Args
@@ -50,8 +52,10 @@ func cassandraInit(CONNECT string){
 
 func simulateWrites(gethWriteFrequency int) {
 	var cassLatencies, gethLatencies []message.Latencies
-	fmt.Println("Generating data...")
+	s := []message.Test_sensor{}
+	r := 0 //how many times data for all sensors has been written
 	randI := 0
+	fmt.Println("Generating data...")
 	for {
 		r++
 		randI = rand.Intn(3000 - 1000) + 1000
@@ -61,13 +65,16 @@ func simulateWrites(gethWriteFrequency int) {
 			cassandraTest(&cassWR)
 			fmt.Printf("Sensor: %v, Write: %v, write latency: %vms, read latency: %vms\n", id, r, cassWR.Latencies.WriteLatency, cassWR.Latencies.ReadLatency)
 			cassLatencies = append(cassLatencies, cassWR.Latencies)
+			s = append(s, cassWR)
 		}
 
-		if r % gethWriteFrequency == 0 {
+		if len(s) % gethWriteFrequency == 0 {
+			metadata := hash(s)
 			gethWR := message.Latencies{} //stores info for geth write & read
-			gethTest("ws://10.0.0.1:8101", "metadata", &gethWR)
+			gethTest("ws://10.0.0.1:8101", metadata, &gethWR)
 			gethLatencies = append(gethLatencies, gethWR)
 			fmt.Printf("Go-Ethereum - write latency: %vms, read latency: %vms\n", gethWR.WriteLatency, gethWR.ReadLatency)
+			s = []message.Test_sensor{}
 		}
 
 		if r == 100 {
@@ -83,25 +90,25 @@ func simulateWrites(gethWriteFrequency int) {
 }
 
 func cassandraTest(data *message.Test_sensor) {
-	s := time.Now().UnixNano()/1000000
+	start := time.Now().UnixNano()/1000000
 	//create new row in test_table
 	if err := Session.Query("INSERT INTO test_sensor(sensor_id,write,temperature,speed) VALUES(?, ?, ?, ?)", data.Sensor_id, data.Write, data.Temperature, data.Speed).Exec(); err != nil {
 		fmt.Println(err)
 	}
 
-	data.Latencies.WriteLatency = int(time.Now().UnixNano()/1000000 - s)
+	data.Latencies.WriteLatency = int(time.Now().UnixNano()/1000000 - start)
 
-	s = time.Now().UnixNano()/1000000
+	start = time.Now().UnixNano()/1000000
 	//read new row in test_table
 	if err := Session.Query(`SELECT speed FROM test_sensor WHERE sensor_id = ? AND write = ?`, data.Sensor_id, data.Write).Exec(); err != nil {
 		fmt.Println(err)
 	}	
 
-	data.Latencies.ReadLatency = int(time.Now().UnixNano()/1000000 - s)
+	data.Latencies.ReadLatency = int(time.Now().UnixNano()/1000000 - start)
 }
 
-func gethTest(connect, msg string, gethWR *message.Latencies) {
-	s := time.Now().UnixNano()/1000000
+func gethTest(connect string, msg [32]byte, gethWR *message.Latencies) {
+	start := time.Now().UnixNano()/1000000
 	//writes data into geth transaction
 	tx := fmt.Sprintf("eth.sendTransaction({from:eth.accounts[0],to:eth.accounts[0],value:1,data:web3.toHex('%v')})", msg)
 	output, err := exec.Command("geth", "attach", connect, "--exec", tx).CombinedOutput() 
@@ -111,16 +118,20 @@ func gethTest(connect, msg string, gethWR *message.Latencies) {
 	}
 
 	transactionID := string(output)
-	gethWR.WriteLatency =  int(time.Now().UnixNano()/1000000 - s)
+	gethWR.WriteLatency =  int(time.Now().UnixNano()/1000000 - start)
 
-	s = time.Now().UnixNano()/1000000
+	start = time.Now().UnixNano()/1000000
 	tx = fmt.Sprintf("eth.getTransaction(%v)", transactionID)
 	exec.Command("geth", "attach", connect, "--exec", tx).Run() 
 
-	gethWR.ReadLatency = int(time.Now().UnixNano()/1000000 - s)
+	gethWR.ReadLatency = int(time.Now().UnixNano()/1000000 - start)
 }
 
-
+func hash(arr []message.Test_sensor) [32]byte {
+	buf := bytes.Buffer{}
+	gob.NewEncoder(&buf).Encode(arr)
+	return sha256.Sum256(buf.Bytes())
+}
 
 func average(arr []message.Latencies) (float32, float32) {
 	var writeSum, readSum int
