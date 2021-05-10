@@ -57,6 +57,7 @@ func simulateWrites(gethWriteFrequency int) {
 	fmt.Println("Generating data...")
 	for {
 		row++
+		write++
 		randI = rand.Intn(3000 - 1000) + 1000
 		for id := 1; id <= 5; id++ {
 			str := strconv.Itoa(randI/1000) //returns string of random int
