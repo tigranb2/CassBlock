@@ -92,7 +92,7 @@ func simulateWrites(gethWriteFrequency int) {
 func cassandraTest(data *message.Test_sensor) {
 	start := time.Now().UnixNano()/1000000
 	//create new row in test_table
-	if err := Session.Query("INSERT INTO test_sensor(sensor_id,write,temperature,speed) VALUES(?, ?, ?, ?)", data.Sensor_id, data.Row, data.Temperature, data.Speed).Exec(); err != nil {
+	if err := Session.Query("INSERT INTO test_sensor(sensor_id,row,temperature,speed) VALUES(?, ?, ?, ?)", data.Sensor_id, data.Row, data.Temperature, data.Speed).Exec(); err != nil {
 		fmt.Println(err)
 	}
 
@@ -100,7 +100,7 @@ func cassandraTest(data *message.Test_sensor) {
 
 	start = time.Now().UnixNano()/1000000
 	//read new row in test_table
-	if err := Session.Query(`SELECT speed FROM test_sensor WHERE sensor_id = ? AND write = ?`, data.Sensor_id, data.Row).Exec(); err != nil {
+	if err := Session.Query(`SELECT speed FROM test_sensor WHERE sensor_id = ? AND row = ?`, data.Sensor_id, data.Row).Exec(); err != nil {
 		fmt.Println(err)
 	}	
 
