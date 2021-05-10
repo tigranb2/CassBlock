@@ -14,7 +14,7 @@ from topos import *
 from config import conf
 from geth import *
 
-geth_write_frequency = int(argv[1])
+row_count = int(argv[1])
 status = "rerun"
 
 if len(argv) > 2:
@@ -90,10 +90,11 @@ def main():
     delay_command(1, miner_start.format( 
         network_id=network_id, port=port, miner_thread=miner_thread
     ))
-    sleep(20)
+    sleep(40)
 
     # starts writes
-    delay_command(1, "./simulateWrites 5")
+    cmd = f"./simulateWrites {row_count}"
+    delay_command(1, cmd")
     
 
     # stop the network
