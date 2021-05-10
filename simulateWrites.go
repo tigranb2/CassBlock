@@ -50,7 +50,7 @@ func cassandraInit(CONNECT string){
 	}
 }
 
-func simulateWrites(gethWriteFrequency int) {
+func simulateWrites(rowCount int) {
 	var cassLatencies, gethLatencies []message.Latencies
 	s := []message.Test_sensor{}
 	write, row, randI := 0, 0, 0
@@ -68,7 +68,7 @@ func simulateWrites(gethWriteFrequency int) {
 			s = append(s, cassWR)
 		}
 
-		if len(s) % gethWriteFrequency == 0 {
+		if len(s) % rowCount == 0 {
 			metadata := hash(s)
 			gethWR := message.Latencies{} //stores info for geth write & read
 			gethTest("ws://10.0.0.1:8101", metadata, &gethWR)
