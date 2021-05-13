@@ -95,7 +95,7 @@ def main():
     sleep(20)
 
     # starts writes
-    cmd = f"./simulateWrites {row_count}"
+    cmd = f"./simulateWrites {node_count} {row_count}"
     delay_command(1, cmd)
     
 
