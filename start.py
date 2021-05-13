@@ -8,17 +8,17 @@ from mininet.node import CPULimitedHost
 from mininet.link import TCLink
 from mininet.util import dumpNodeConnections
 from mininet.log import setLogLevel
-from mininet.cli import CLI
 
 from topos import *
 from config import conf
 from geth import *
 
-row_count = int(argv[1])
+node_count = int(argv[1])
+row_count = int(argv[2])
 status = "rerun"
 
-if len(argv) > 2:
-    status = str(argv[2]) 
+if len(argv) > 3:
+    status = str(argv[3])
 
 def get_topology():
     # privateDirs = [('~/.ethereum', '~/%(name)s/.ethereum')]
@@ -87,10 +87,12 @@ def main():
     delay_command(1, cmd)
 
     # starts geth
-    delay_command(1, miner_start.format( 
-        network_id=network_id, port=port, miner_thread=miner_thread
-    ))
-    sleep(40)
+    delay_command(1, miner_start)
+    for i in range(2, node_count + 1):
+        delay_command(i, gen_enode)
+        delay_command(i, node_start.format(n=i))
+
+    sleep(20)
 
     # starts writes
     cmd = f"./simulateWrites {row_count}"
