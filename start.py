@@ -97,7 +97,7 @@ def main():
     # starts writes
     for i in range(1, node_count + 1):
         cmd = f"./simulateWrites {i} {row_count}"
-        delay_command(1, cmd)
+        delay_command(i, cmd)
     
 
     # stop the network
