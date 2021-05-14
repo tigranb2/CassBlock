@@ -7,6 +7,7 @@ else
   chmod 700 simulateWrites
   . gethrun.sh $1
   python3 start.py $1 $2 $3
-  rm -r geth
+  rm -r ~/go/src/CassBlock/blockchain/
   killall java
+  killall geth
 fi
