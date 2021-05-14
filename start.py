@@ -81,10 +81,13 @@ def main():
 
     hs = topo.hosts(sort=True)
     hs = [net.getNodeByName(h) for h in hs]
-    
-     # starts cassandra
+
+    # init cassandra table
     cmd = f"./cassrun.sh {status}"
     delay_command(1, cmd)
+    # starts cassandra
+    for i in range(1, node_count + 1):
+        delay_command(i, "~/cassandra/bin/cassandra -R &>/dev/null")
 
     # starts geth
     delay_command(1, miner_start)
