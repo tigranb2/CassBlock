@@ -1,17 +1,17 @@
 import yaml
+import shutil
 from sys import argv
-import os
 
 num_of_nodes = int(argv[1])
 
 
 def create_dir(id):
-    cmd = f"cp -r ~/cassandra/conf ~/cassandra/conf{id}"
-    os.system(cmd)
-    cmd = f"cp ~/cassandra/bin/cassandra.in.sh ~/cassandra/bin/cassandra{id}.in.sh"
-    os.system(cmd)
-    cmd = f"cp ~/cassandra/bin/cassandra ~/cassandra/bin/cassandra{id}"
-    os.system(cmd)
+    dst = f"~/cassandra/conf{id}"
+    shutil.copytree("~/cassandra/conf", dst)
+    dst = f"~/cassandra/bin/cassandra{id}.in.sh"
+    shutil.copytree("~/cassandra/bin/cassandra.in.sh", dst)
+    dst = f"~/cassandra/bin/cassandra{id}"
+    shutil.copytree("~/cassandra/bin/cassandra", dst)
 
 
 def edit_files(id):
@@ -25,10 +25,12 @@ def edit_files(id):
         y['rpc_address'] = '10.0.0.{id}'
         yaml.dump(y, default_flow_style=False, sort_keys=False)
 
+
 def main():
-    for id in num_of_nodes:
-        create_dir(id+1)
-        edit_files(id+1)
+    for id in range(num_of_nodes):
+        create_dir(id + 1)
+        edit_files(id + 1)
+
 
 if __name__ == '__main__':
     main()
