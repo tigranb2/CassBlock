@@ -5,31 +5,47 @@ from sys import argv
 num_of_nodes = int(argv[1])
 
 
-def create_dir(id):
-    dst = f"~/cassandra/conf{id}"
-    shutil.copytree("~/cassandra/conf", dst)
-    dst = f"~/cassandra/bin/cassandra{id}.in.sh"
-    shutil.copytree("~/cassandra/bin/cassandra.in.sh", dst)
-    dst = f"~/cassandra/bin/cassandra{id}"
-    shutil.copytree("~/cassandra/bin/cassandra", dst)
+def create_dir(n):
+    dst = f"/root/cassandra/conf{n}"
+    shutil.copytree("/root/cassandra/conf", dst)
+    dst = f"/root/cassandra/bin/cassandra{n}.in.sh"
+    shutil.copy("/root/cassandra/bin/cassandra.in.sh", dst)
+    dst = f"/root/cassandra/bin/cassandra{n}"
+    shutil.copy("/root/cassandra/bin/cassandra", dst)
 
 
-def edit_files(id):
-    file = f"~/casssandra/conf{id}/cassandra.yaml"
+def edit_files(n):
+    file = f"/root/cassandra/conf{n}/cassandra.yaml"
+    # read yaml file
     with open(file) as f:
-        y = yaml.safe_load(f)
-        y['data_file_directories'] = f'- /var/lib/cassandra/cassandra{id}/data'
-        y['commit_log_directory'] = f'/var/lib/cassandra/cassandra{id}/commitlog'
-        y['saved_caches_directory'] = f'/var/lib/cassandra/cassandra{id}/saved_caches'
-        y['listen_address'] = '10.0.0.{id}'
-        y['rpc_address'] = '10.0.0.{id}'
-        yaml.dump(y, default_flow_style=False, sort_keys=False)
+        y = yaml.load(f)
+
+    dst = f'/var/lib/cassandra/cassandra{n}/data'
+    y['data_file_directories'] = dst
+    dst = f'/var/lib/cassandra/cassandra{n}/commitlog'
+    y['commitlog_directory'] = dst
+    dst = f'/var/lib/cassandra/cassandra{n}/saved_caches'
+    y['saved_caches_directory'] = dst
+    dst = f'10.0.0.{n}'
+    y['listen_address'] = dst
+    dst = f'10.0.0.{n}'
+    y['rpc_address'] = dst
+
+    # write updated parameters to file
+    with open(file, "w") as f:
+        newfile = yaml.dump(y, f)
 
 
 def main():
-    for id in range(num_of_nodes):
-        create_dir(id + 1)
-        edit_files(id + 1)
+    #shutil.copytree("/root/cassandra/", "/root/cassandra_backup/")  # backup of cassandra
+    for n in range(num_of_nodes):
+        create_dir(n + 1)
+        edit_files(n + 1)
+
+    # move the following to a different file!
+    #shutil.rmtree("/root/cassandra/")  # remove modified cassandra folder
+    #shutil.copytree("/root/cassandra_backup/", "/root/cassandra/")  # restore backup
+    #shutil.rmtree("/root/cassandra_backup/")  # remove backup
 
 
 if __name__ == '__main__':
