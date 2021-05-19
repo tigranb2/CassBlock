@@ -22,18 +22,13 @@ def edit_files(n):
     new_line = f"7{n}99"
     replace(file, "7199", new_line)
 
-    file = f"/root/cassandra/conf{n}/log4j-server.properties"
-    new_line = f"/var/log/cassandra/cassandra{n}/system.log"
-    replace(file, "/var/log/cassandra/system.log", new_line)
-    replace(file, "INFO.stdout.R", "DEBUG.stdout.R")
-
     file = f"/root/cassandra/bin/cassandra{n}.in.sh"
     new_line = f"$CASSANDRA_HOME/conf{n}"
     replace(file, "$CASSANDRA_HOME/conf", new_line)
 
     file = f"/root/cassandra/bin/cassandra{n}"
-    new_line = f"/cassandra{n}.in.sh"
-    replace(file, "/cassandra.in.sh", new_line)
+    new_line = f"cassandra{n}.in.sh"
+    replace(file, "cassandra.in.sh", new_line)
 
 
 def yaml_replace(file, n):
