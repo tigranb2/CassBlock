@@ -16,6 +16,27 @@ def create_dir(n):
 
 def edit_files(n):
     file = f"/root/cassandra/conf{n}/cassandra.yaml"
+    yaml_replace(file, n)
+
+    file = f"/root/cassandra/conf{n}/cassandra-env.sh"
+    new_line = f"7{n}99"
+    replace(file, "7199", new_line)
+
+    file = f"/root/cassandra/conf{n}/log4j-server.properties"
+    new_line = f"/var/log/cassandra/cassandra{n}/system.log"
+    replace(file, "/var/log/cassandra/system.log", new_line)
+    replace(file, "INFO.stdout.R", "DEBUG.stdout.R")
+
+    file = f"/root/cassandra/bin/cassandra{n}.in.sh"
+    new_line = f"$CASSANDRA_HOME/conf{n}"
+    replace(file, "$CASSANDRA_HOME/conf", new_line)
+
+    file = f"/root/cassandra/bin/cassandra{n}"
+    new_line = f"/cassandra{n}.in.sh"
+    replace(file, "/cassandra.in.sh", new_line)
+
+
+def yaml_replace(file, n):
     # read yaml file
     with open(file) as f:
         y = yaml.load(f)
@@ -33,7 +54,19 @@ def edit_files(n):
 
     # write updated parameters to file
     with open(file, "w") as f:
-        newfile = yaml.dump(y, f)
+        yaml.dump(y, f)
+
+
+def replace(file, to_find, replace_to):
+    f = open(file, 'r')
+    file_data = f.read()
+    f.close()
+
+    new_data = file_data.replace(to_find, replace_to)
+
+    f = open(file, 'w')
+    f.write(new_data)
+    f.close()
 
 
 def main():
@@ -42,7 +75,7 @@ def main():
         create_dir(n + 1)
         edit_files(n + 1)
 
-    # move the following to a different file!
+    #move the following to a different file!
     #shutil.rmtree("/root/cassandra/")  # remove modified cassandra folder
     #shutil.copytree("/root/cassandra_backup/", "/root/cassandra/")  # restore backup
     #shutil.rmtree("/root/cassandra_backup/")  # remove backup
