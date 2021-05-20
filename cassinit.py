@@ -1,4 +1,3 @@
-import yaml
 import shutil
 from sys import argv
 
@@ -16,7 +15,10 @@ def create_dir(n):
 
 def edit_files(n):
     file = f"/root/cassandra/conf{n}/cassandra.yaml"
-    yaml_replace(file, n)
+    new_line = f"/cassandra/cassandra{n}/"
+    replace(file, "/cassandra/", new_line)
+    new_line = f"10.0.0.{n}"
+    replace(file, "localhost", new_line)
 
     file = f"/root/cassandra/conf{n}/cassandra-env.sh"
     new_line = f"7{n}99"
@@ -29,27 +31,6 @@ def edit_files(n):
     file = f"/root/cassandra/bin/cassandra{n}"
     new_line = f"cassandra{n}.in.sh"
     replace(file, "cassandra.in.sh", new_line)
-
-
-def yaml_replace(file, n):
-    # read yaml file
-    with open(file) as f:
-        y = yaml.load(f)
-
-    dst = f'/var/lib/cassandra/cassandra{n}/data'
-    y['data_file_directories'] = dst
-    dst = f'/var/lib/cassandra/cassandra{n}/commitlog'
-    y['commitlog_directory'] = dst
-    dst = f'/var/lib/cassandra/cassandra{n}/saved_caches'
-    y['saved_caches_directory'] = dst
-    dst = f'10.0.0.{n}'
-    y['listen_address'] = dst
-    dst = f'10.0.0.{n}'
-    y['rpc_address'] = dst
-
-    # write updated parameters to file
-    with open(file, "w") as f:
-        yaml.dump(y, f)
 
 
 def replace(file, to_find, replace_to):
@@ -65,7 +46,7 @@ def replace(file, to_find, replace_to):
 
 
 def main():
-    #shutil.copytree("/root/cassandra/", "/root/cassandra_backup/")  # backup of cassandra
+    shutil.copytree("/root/cassandra/", "/root/cassandra_backup/")  # backup of cassandra
     for n in range(num_of_nodes):
         create_dir(n + 1)
         edit_files(n + 1)
