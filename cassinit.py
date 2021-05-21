@@ -23,6 +23,7 @@ def edit_files(n):
     file = f"/root/cassandra/conf{n}/cassandra-env.sh"
     new_line = f"7{n}99"
     replace(file, "7199", new_line)
+    replace(file, "=yes", "=no")
 
     file = f"/root/cassandra/bin/cassandra{n}.in.sh"
     new_line = f"$CASSANDRA_HOME/conf{n}"
