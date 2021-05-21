@@ -39,7 +39,7 @@ func main() {
 	rowCount, _ := strconv.Atoi(arguments[2]) //numbers of rows per sensor
 	ip = fmt.Sprintf("10.0.0.%v", id)
 
-	cassandraInit("127.0.0.1")
+	cassandraInit(ip)
 	simulateWrites(id, rowCount)
 }
 
