@@ -1,4 +1,4 @@
-~/cassandra/bin/cassandra -R
+~/cassandra/bin/cassandra1 -R
 sleep 60 # waits 1 minute for cassandra to come online
   
 if [[ $1 == "rerun" ]]; then
