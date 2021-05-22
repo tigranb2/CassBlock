@@ -1,7 +1,7 @@
 from sys import modules, argv
 from os import system
 from functools import partial
-from time import time, sleep
+from time import sleep
 
 from mininet.net import Mininet
 from mininet.node import CPULimitedHost
@@ -12,13 +12,14 @@ from mininet.log import setLogLevel
 from topos import *
 from config import conf
 from geth import *
+from cassandra import *
 
 node_count = int(argv[1])
 row_count = int(argv[2])
-status = "rerun"
+mode = "rerun"
 
 if len(argv) > 3:
-    status = str(argv[3])
+    mode = str(argv[3])
 
 def get_topology():
     # privateDirs = [('~/.ethereum', '~/%(name)s/.ethereum')]
@@ -47,11 +48,6 @@ def test_topology(topo: Topo, net: Mininet):
 
     print("Get all hosts")
     print(topo.hosts(sort=True))
-
-    # print("Get all links")
-    # for link in topo.links(sort=True, withKeys=True, withInfo=True):
-    #     pprint(link)
-    # print()
 
     if conf['test']['iperf'] == -1:
         return
@@ -83,11 +79,13 @@ def main():
     hs = [net.getNodeByName(h) for h in hs]
 
     # init cassandra table
-    cmd = f"./cassrun.sh {status}"
-    delay_command(1, cmd)
+    delay_command(1, cass_1_start(mode))
+
     # starts cassandra
-    for i in range(1, node_count + 1):
-        delay_command(i, "~/cassandra/bin/cassandra -R &>/dev/null")
+    for i in range(2, node_count + 1):
+        cmd = f"~/cassandra/bin/cassandra{i} -R &>/dev/null"
+        delay_command(i, cmd)
+        sleep(60)
 
     # starts geth
     delay_command(1, miner_start)
@@ -98,10 +96,12 @@ def main():
     sleep(20)
 
     # starts writes
-    for i in range(1, node_count + 1):
-        cmd = f"./simulateWrites {i} {row_count}"
+    for i in range(2, node_count + 1):
+        cmd = f"./simulateWrites {i} {row_count} &"
         delay_command(i, cmd)
-    
+
+    cmd = f"./simulateWrites 1 {row_count}"
+    delay_command(1, cmd)
 
     # stop the network
     net.stop()
