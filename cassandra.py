@@ -52,8 +52,8 @@ def cass_1_start(mode):
     os.system("~/cassandra/bin/cassandra1 -R")
     sleep(60)  # sleeps 1min for cassandra to boot online
     if mode == "new":
-        os.system('''~/cassandra/bin/cqlsh -e "CREATE KEYSPACE test_keyspace WITH replication "
-                    "= {'class': 'SimpleStrategy', 'replication_factor': '1'};" 10.0.0.1"''')
+        os.system('''~/cassandra/bin/cqlsh -e "CREATE KEYSPACE test_keyspace WITH replication '''
+                  '''= {'class': 'SimpleStrategy', 'replication_factor': '1'};" 10.0.0.1"''')
     else:
         os.system('~/cassandra/bin/cqlsh -e "USE test_keyspace; DROP TABLE test_sensor;" 10.0.0.1')
 
