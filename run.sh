@@ -8,7 +8,7 @@ else
 
   python3 cassandra.py $1 # initializes cassandra directories
   . gethrun.sh $1 # initializes geth directories
-  python3 start.py $1 $2 $3 # optional 3rd argument for mode
+  python3 start.py $1 $2
 
   rm -r ~/go/src/CassBlock/blockchain/
   rm -r /root/cassandra/
