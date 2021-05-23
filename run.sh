@@ -13,7 +13,7 @@ else
   rm -r ~/go/src/CassBlock/blockchain/
   rm -r /root/cassandra/
   cp -r /root/cassandra_backup/ /root/cassandra/
-  rm -r root/cassandra_backup/
+  rm -r /root/cassandra_backup/
   killall java
   killall geth
 fi
