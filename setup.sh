@@ -38,6 +38,8 @@ sudo apt install openjdk-8-jre-headless
 echo 'JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64' >> /root/.bashrc
 source /root/.bashrc
 
+apt install curl
+
 cd
 curl -OL https://downloads.apache.org/cassandra/3.11.10/apache-cassandra-3.11.10-bin.tar.gz
 tar -xzvf apache-cassandra-3.11.10-bin.tar.gz
