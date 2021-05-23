@@ -79,7 +79,10 @@ def main():
     hs = [net.getNodeByName(h) for h in hs]
 
     # init cassandra table
-    delay_command(1, cass_1_start())
+    delay_command(1, "~/cassandra/bin/cassandra1 -R")
+    sleep(60)
+    delay_command(1, init_keyspace)
+    delay_command(1, init_table)
 
     # starts cassandra
     for i in range(2, node_count + 1):
