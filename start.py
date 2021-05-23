@@ -86,7 +86,7 @@ def main():
     cmd = f"./cassrun.sh {status}"
     delay_command(1, cmd)
     # starts cassandra
-    for i in range(1, node_count + 1):
+    for i in range(2, node_count + 1):
         delay_command(i, "~/cassandra/bin/cassandra -R &>/dev/null")
 
     # starts geth
