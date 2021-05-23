@@ -16,7 +16,7 @@ from cassandra import *
 
 node_count = int(argv[1])
 row_count = int(argv[2])
-mode = "rerun"
+
 
 if len(argv) > 3:
     mode = str(argv[3])
@@ -79,7 +79,7 @@ def main():
     hs = [net.getNodeByName(h) for h in hs]
 
     # init cassandra table
-    delay_command(1, cass_1_start(mode))
+    delay_command(1, cass_1_start())
 
     # starts cassandra
     for i in range(2, node_count + 1):

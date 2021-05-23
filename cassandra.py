@@ -48,17 +48,17 @@ def replace(file, to_find, replace_to):
     f.close()
 
 
-def cass_1_start(mode):
+def cass_1_start():
     os.system("~/cassandra/bin/cassandra1 -R")
     sleep(60)  # sleeps 1min for cassandra to boot online
-    if mode == "new":
-        os.system('''~/cassandra/bin/cqlsh -e "CREATE KEYSPACE test_keyspace WITH replication '''
-                  '''= {'class': 'SimpleStrategy', 'replication_factor': '1'};" 10.0.0.1"''')
-    else:
-        os.system('~/cassandra/bin/cqlsh -e "USE test_keyspace; DROP TABLE test_sensor;" 10.0.0.1')
+    cmd = ('''~/cassandra/bin/cqlsh -e "CREATE KEYSPACE test_keyspace WITH replication'''
+           '''= {'class': 'SimpleStrategy', 'replication_factor': '1'};" 10.0.0.1"''')
+    os.system(cmd)
+    print(cmd)
 
-    os.system('~/cassandra/bin/cqlsh -e "USE test_keyspace; CREATE TABLE test_sensor '
-              'sensor_id int,row int,temperature text,speed text,PRIMARY KEY ((sensor_id), row));" 10.0.0.1')
+    cmd = ('~/cassandra/bin/cqlsh -e "USE test_keyspace; CREATE TABLE test_sensor '
+           'sensor_id int,row int,temperature text,speed text,PRIMARY KEY ((sensor_id), row));" 10.0.0.1')
+    os.system(cmd)
 
 
 def main():
