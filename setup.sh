@@ -48,3 +48,4 @@ mv apache-cassandra-3.11.10 cassandra
 
 cd
 go get github.com/gocql/gocql
+cd ~/go/src/CassBlock
