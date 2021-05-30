@@ -41,7 +41,7 @@ source /root/.bashrc
 cd
 go get github.com/gocql/gocql
 
-apt install python3-pip
+apt install python-pip
 pip install ccm
 
 cd ~/go/src/CassBlock
