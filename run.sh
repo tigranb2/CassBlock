@@ -1,6 +1,9 @@
 if [[ -z $2 ]]; then
   echo "Please specify node count, row count, and -n if running for the first time"
 else
+  if [[ $3 = "-n" ]]; then
+    ccm create test -v 3.11.10
+  fi
   go build ./simulateWrites.go
   chmod 700 cassandra.py
   chmod 700 gethrun.sh

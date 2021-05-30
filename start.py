@@ -16,10 +16,6 @@ from geth import *
 
 node_count = int(argv[1])
 row_count = int(argv[2])
-run_mode = "rerun"
-
-if len(argv) > 3:
-    run_mode = str(argv[3])
 
 
 def get_topology():
@@ -84,8 +80,9 @@ def main():
     hs = topo.hosts(sort=True)
     hs = [net.getNodeByName(h) for h in hs]
 
-
-    delay_command(1, start_cluster())
+    cmd = f"ccm populate -n {num_of_nodes}"
+    delay_command(1, cmd)
+    delay_command(1, "ccm start --root")
     sleep(30)
     delay_command(1, "ccm node1 ring")
 
@@ -101,7 +98,6 @@ def main():
     for i in range(1, node_count + 1):
         cmd = f"./simulateWrites {i} {row_count}"
         delay_command(i, cmd)
-    
 
     # stop the network
     net.stop()

@@ -27,7 +27,7 @@ CREATE TABLE test_sensor (
 */
 
 var Session *gocql.Session
-var ip string
+var gethip, cassip string
 
 func main() {
 	arguments := os.Args
@@ -37,9 +37,10 @@ func main() {
 	}
 	id, _ := strconv.Atoi(arguments[1])       //numbers of rows per sensor
 	rowCount, _ := strconv.Atoi(arguments[2]) //numbers of rows per sensor
-	ip = fmt.Sprintf("10.0.0.%v", id)
+	gethip = fmt.Sprintf("ws://10.0.0.%v:8101", id)
+	cassip = fmt.Sprintf("127.0.0.%v:7%v00", id, id)
 
-	cassandraInit("127.0.0.1")
+	cassandraInit(cassip)
 	simulateWrites(id, rowCount)
 }
 
@@ -72,7 +73,7 @@ func simulateWrites(id, rowCount int) {
 		if len(s)%rowCount == 0 {
 			metadata := hash(s)
 			gethWR := message.Latencies{} //stores info for geth write & read
-			gethTest("ws://"+ip+"8101", metadata, &gethWR)
+			gethTest(gethip, metadata, &gethWR)
 			gethLatencies = append(gethLatencies, gethWR)
 			fmt.Printf("Go-Ethereum - write latency: %vms, read latency: %vms\n", gethWR.WriteLatency, gethWR.ReadLatency)
 			s = []message.Test_sensor{}
