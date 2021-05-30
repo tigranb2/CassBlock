@@ -10,15 +10,17 @@ from mininet.util import dumpNodeConnections
 from mininet.log import setLogLevel
 
 from topos import *
+from cassandra import *
 from config import conf
 from geth import *
 
 node_count = int(argv[1])
 row_count = int(argv[2])
-status = "rerun"
+run_mode = "rerun"
 
 if len(argv) > 3:
-    status = str(argv[3])
+    run_mode = str(argv[3])
+
 
 def get_topology():
     # privateDirs = [('~/.ethereum', '~/%(name)s/.ethereum')]
@@ -82,12 +84,10 @@ def main():
     hs = topo.hosts(sort=True)
     hs = [net.getNodeByName(h) for h in hs]
 
-    # init cassandra table
-    cmd = f"./cassrun.sh {status}"
-    delay_command(1, cmd)
-    # starts cassandra
-    for i in range(2, node_count + 1):
-        delay_command(i, "~/cassandra/bin/cassandra -R &>/dev/null")
+
+    delay_command(1, start_cluster())
+    sleep(30)
+    delay_command(1, "ccm node1 ring")
 
     # starts geth
     delay_command(1, miner_start)
