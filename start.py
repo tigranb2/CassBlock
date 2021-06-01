@@ -80,8 +80,10 @@ def main():
     hs = topo.hosts(sort=True)
     hs = [net.getNodeByName(h) for h in hs]
 
-    cmd = f"ccm populate -n {num_of_nodes}"
-    delay_command(1, cmd)
+    for i in range(1, node_count + 1):
+        cmd = f"ccm add node4 -i 127.0.0.{i} -j 7{i}00 -b"
+        delay_command(i, cmd)
+
     delay_command(1, "ccm start --root")
     sleep(30)
     delay_command(1, "ccm node1 ring")
