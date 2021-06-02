@@ -10,7 +10,7 @@ from mininet.util import dumpNodeConnections
 from mininet.log import setLogLevel
 
 from topos import *
-from cassandra import *
+from cass import *
 from config import conf
 from geth import *
 
@@ -80,13 +80,15 @@ def main():
     hs = topo.hosts(sort=True)
     hs = [net.getNodeByName(h) for h in hs]
 
-    for i in range(1, node_count + 1):
-        cmd = f"ccm add node4 -i 127.0.0.{i} -j 7{i}00 -b"
-        delay_command(i, cmd)
+    cmd = f"ccm populate -n {node_count}"
+    delay_command(1, cmd)
 
     delay_command(1, "ccm start --root")
-    sleep(30)
+    sleep(15)
     delay_command(1, "ccm node1 ring")
+
+    delay_command(1, init_keyspace)
+    delay_command(1, init_table)
 
     # starts geth
     delay_command(1, miner_start)

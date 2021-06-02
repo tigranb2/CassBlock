@@ -38,7 +38,7 @@ func main() {
 	id, _ := strconv.Atoi(arguments[1])       //numbers of rows per sensor
 	rowCount, _ := strconv.Atoi(arguments[2]) //numbers of rows per sensor
 	gethip = fmt.Sprintf("ws://10.0.0.%v:8101", id)
-	cassip = fmt.Sprintf("127.0.0.%v:7%v00", id, id)
+	cassip = fmt.Sprintf("127.0.0.%v", id)
 
 	cassandraInit(cassip)
 	simulateWrites(id, rowCount)
