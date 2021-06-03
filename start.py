@@ -80,11 +80,17 @@ def main():
     hs = topo.hosts(sort=True)
     hs = [net.getNodeByName(h) for h in hs]
 
-    cmd = f"ccm populate -n {node_count}"
-    delay_command(1, cmd)
+    system("ccm add node1 -i 10.0.0.1 -j 7100 -s")
 
-    delay_command(1, "ccm start --root")
-    sleep(15)
+    for i in range(2, node_count + 1):
+        cmd = f"ccm add node{i} -i 10.0.0.{i} -j 7{i}00 -s"
+        system(cmd)
+
+    for i in range(1, node_count + 1):
+        cmd = f"ccm node{i} start"
+        delay_command(i, cmd)
+        sleep(5)
+
     delay_command(1, "ccm node1 ring")
 
     delay_command(1, init_keyspace)
@@ -99,9 +105,12 @@ def main():
     sleep(20)
 
     # starts writes
-    for i in range(1, node_count + 1):
-        cmd = f"./simulateWrites {i} {row_count}"
+    for i in range(1, node_count):
+        cmd = f"./simulateWrites {i} {row_count} &"
         delay_command(i, cmd)
+
+    cmd = f"./simulateWrites {node_count} {row_count}"
+    delay_command(node_count, cmd)
 
     # stop the network
     net.stop()
