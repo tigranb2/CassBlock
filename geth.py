@@ -10,7 +10,7 @@ gen_enode = (f"ENODE_ADDRESS=\"enode://$(bootnode -nodekey $DDR1/geth/nodekey -w
              f"@{nodes[0]}:{port}\"")
 
 miner_start = (
-    f"geth --nodiscover --ipcdisable --networkid {network_id} "
+    f"nohup geth --nodiscover --ipcdisable --networkid {network_id} "
     f"--syncmode 'full' --port {port} --datadir=$DDR1 "
     "--ws --wsaddr 10.0.0.1 --wsport 8101 --rpcapi eth,web3,personal,net,admin,miner "
     f"--gasprice '1' --mine --minerthreads {miner_thread} "
