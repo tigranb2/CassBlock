@@ -88,8 +88,26 @@ func simulateWrites(id, rowCount int) {
 
 	cassWriteLatency, cassReadLatency := average(cassLatencies)
 	gethWriteLatency, gethReadLatency := average(gethLatencies)
-	fmt.Printf("\nCASSANDRA:\n	Average write latency: %vms\n	Average read latency: %vms\n", cassWriteLatency, cassReadLatency)
-	fmt.Printf("\nGO-ETHEREUM:\n	Average write latency: %vms\n	Average read latency: %vms\n", gethWriteLatency, gethReadLatency)
+	finalCassLatencies := fmt.Sprintf("%v %v", cassWriteLatency, cassReadLatency)
+	finalGethLatencies := fmt.Sprintf("%v %v", gethWriteLatency, gethReadLatency)
+
+	f, err := os.OpenFile("avg-latencies.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	_, err = f.WriteString(finalCassLatencies+", "+finalGethLatencies)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	if err = f.Close(); err != nil {
+		fmt.Println(err)
+		return
+	}
+
 }
 
 func cassandraTest(data *message.Test_sensor) {
