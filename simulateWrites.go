@@ -87,7 +87,7 @@ func simulateWrites(id, rowCount int) {
 
 	cassWriteLatency, cassReadLatency := average(cassLatencies) //average of all cassandra write and read latencies
 	gethWriteLatency, gethReadLatency := average(gethLatencies) //average of all geth write and read latencies
-	writeString := fmt.Sprintf("CassW: %v\nCassR: %v\nGethW: %v\nGethR: %v", cassWriteLatency, cassReadLatency, gethWriteLatency, gethReadLatency)
+	writeString := fmt.Sprintf("CassW: %v\nCassR: %v\nGethW: %v\nGethR: %v\n", cassWriteLatency, cassReadLatency, gethWriteLatency, gethReadLatency)
 
 	f, err := os.OpenFile("avg-latencies.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644) //creates file if it doesn't exist
 	if err != nil {
