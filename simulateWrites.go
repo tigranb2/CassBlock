@@ -74,7 +74,7 @@ func simulateWrites(id, rowCount int) {
 			gethWR := message.Latencies{} //stores info for geth write & read
 			gethTest("ws://"+ip+":8101", metadata, &gethWR)
 			gethLatencies = append(gethLatencies, gethWR)
-			fmt.Printf("Go-Ethereum - write latency: %vms, read latency: %vms\n", gethWR.WriteLatency, gethWR.ReadLatency)
+			fmt.Printf("Go-Ethereum - write latency: %vms, read latency: %vms\n\n", gethWR.WriteLatency, gethWR.ReadLatency)
 			s = []message.Test_sensor{}
 			row = 0 //will overwrite rows 1..rowCount
 		}
@@ -137,7 +137,7 @@ func gethTest(connect string, msg [32]byte, gethWR *message.Latencies) {
 	}
 
 	transactionID := string(output)
-	fmt.Println(transactionID)
+	fmt.Print(transactionID)
 	gethWR.WriteLatency = int(time.Now().UnixNano()/1000000 - start)
 
 	start = time.Now().UnixNano() / 1000000
