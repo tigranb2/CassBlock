@@ -88,8 +88,7 @@ func simulateWrites(id, rowCount int) {
 
 	cassWriteLatency, cassReadLatency := average(cassLatencies)
 	gethWriteLatency, gethReadLatency := average(gethLatencies)
-	finalCassLatencies := fmt.Sprintf("%v %v", cassWriteLatency, cassReadLatency)
-	finalGethLatencies := fmt.Sprintf("%v %v", gethWriteLatency, gethReadLatency)
+	writeString := fmt.Sprintf("CassW: %v\nCassR: %v\nGethW: %v\nGethR: %v", cassWriteLatency, cassReadLatency, gethWriteLatency, gethReadLatency)
 
 	f, err := os.OpenFile("avg-latencies.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -97,7 +96,7 @@ func simulateWrites(id, rowCount int) {
 		return
 	}
 
-	_, err = f.WriteString(finalCassLatencies+", "+finalGethLatencies)
+	_, err = f.WriteString(writeString)
 	if err != nil {
 		fmt.Println(err)
 		return
