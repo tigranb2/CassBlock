@@ -13,14 +13,14 @@ echo 'export GOPATH=~/go' >> /root/.bashrc
 source /root/.bashrc
 
 cd
-wget -q https://github.com/ethereum/go-ethereum/archive/v1.9.12.tar.gz
-tar -xzf v1.9.12.tar.gz
-rm v1.9.12.tar.gz
-cd go-ethereum-1.9.12
+wget -q https://github.com/ethereum/go-ethereum/archive/v1.9.25.tar.gz
+tar -xzf v1.9.25.tar.gz
+rm v1.9.25.tar.gz
+cd go-ethereum-1.9.25
 make all
 
 cd
-echo 'export PATH=$PATH:~/go-ethereum-1.9.12/build/bin' >> /root/.bashrc
+echo 'export PATH=$PATH:~/go-ethereum-1.9.25/build/bin' >> /root/.bashrc
 source /root/.bashrc
 
 cd
