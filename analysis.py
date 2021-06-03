@@ -12,7 +12,7 @@ def extract_data(f, string_to_search):
     results = []
     for line in f:
         if string_to_search in line:
-            results.append(line.split()[1])
+            results.append(float(line.split()[1]))
 
     return results
 
@@ -24,32 +24,34 @@ def average(data):
 def main():
     f = read_file("avg-latencies.txt")
     cass_writes = extract_data(f, "CassW:")
-    cass_write_avg = average(cass_writes)
-    cass_write_median = percentile(array(cass_writes), 50)
-    cass_write_99th = percentile(array(cass_writes), 99)
+    cass_write_avg = round(average(cass_writes), 2)
+    cass_write_median = round(percentile(array(cass_writes), 50), 2)
+    cass_write_99th = round(percentile(array(cass_writes), 99), 2)
 
     cass_reads = extract_data(f, "CassR:")
-    cass_read_avg = average(cass_reads)
-    cass_read_median = percentile(array(cass_reads), 50)
-    cass_read_99th = percentile(array(cass_reads), 99)
+    cass_read_avg = round(average(cass_reads), 2)
+    cass_read_median = round(percentile(array(cass_reads), 50), 2)
+    cass_read_99th = round(percentile(array(cass_reads), 99), 2)
 
     geth_writes = extract_data(f, "GethW:")
-    geth_write_avg = average(geth_writes)
-    geth_write_median = percentile(array(geth_writes), 50)
-    geth_write_99th = percentile(array(geth_writes), 99)
+    geth_write_avg = round(average(geth_writes), 2)
+    geth_write_median = round(percentile(array(geth_writes), 50), 2)
+    geth_write_99th = round(percentile(array(geth_writes), 99), 2)
 
     geth_reads = extract_data(f, "GethR:")
-    geth_read_avg = average(geth_reads)
-    geth_read_median = percentile(array(geth_reads), 50)
-    geth_read_99th = percentile(array(geth_reads), 99)
+    geth_read_avg = round(average(geth_reads), 2)
+    geth_read_median = round(percentile(array(geth_reads), 50), 2)
+    geth_read_99th = round(percentile(array(geth_reads), 99), 2)
 
     data = f"Cassandra:\n        " \
            f"Writes:    avg: {cass_write_avg}    median: {cass_write_median}    99th: {cass_write_99th}\n        " \
            f"Reads:     avg: {cass_read_avg}    median: {cass_read_median}    99th: {cass_read_99th}\n" \
-           f"Geth:\n        " \
+           f"Go-Ethereum:\n        " \
            f"Writes:    avg: {geth_write_avg}    median: {geth_write_median}    99th: {geth_write_99th}\n        " \
-           f"Reads:     avg: {geth_read_avg}    median: {geth_read_median}    99th: {geth_read_99th}"
+           f"Reads:     avg: {geth_read_avg}    median: {geth_read_median}    99th: {geth_read_99th}\n"
 
     file_name = f"{description}-data.txt"
     f = open(file_name, "a")
     f.write(data)
+
+main()
