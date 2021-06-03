@@ -80,16 +80,17 @@ def main():
     hs = topo.hosts(sort=True)
     hs = [net.getNodeByName(h) for h in hs]
 
+    # adds nodes to cluster
     system("ccm add node1 -i 10.0.0.1 -j 7100 -s")
-
     for i in range(2, node_count + 1):
         cmd = f"ccm add node{i} -i 10.0.0.{i} -j 7{i}00 -s"
         system(cmd)
 
+    # starts nodes
     for i in range(1, node_count + 1):
         cmd = f"ccm node{i} start"
         delay_command(i, cmd)
-        sleep(5)
+        sleep(3)
 
     delay_command(1, "ccm node1 ring")
 

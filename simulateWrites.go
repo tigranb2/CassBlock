@@ -39,13 +39,13 @@ func main() {
 	rowCount, _ := strconv.Atoi(arguments[2]) //numbers of rows per sensor
 	ip = fmt.Sprintf("10.0.0.%v", id)
 
-	cassandraInit(ip)
+	cassandraInit(ip) //connect to cassandra database
 	simulateWrites(id, rowCount)
 }
 
 func cassandraInit(CONNECT string) {
 	var err error
-	cluster := gocql.NewCluster(CONNECT) //connect to cassandra database
+	cluster := gocql.NewCluster(CONNECT)
 	cluster.Keyspace = "test_keyspace"
 	Session, err = cluster.CreateSession()
 	if err != nil {
@@ -62,7 +62,6 @@ func simulateWrites(id, rowCount int) {
 		row++
 		write++
 		randI = rand.Intn(3000-1000) + 1000
-		randI = rand.Intn(3000-1000) + 1000
 		str := strconv.Itoa(randI / 1000)                                                                                                  //returns string of random int
 		cassWR := message.Test_sensor{Sensor_id: id, Row: row, Temperature: str + "km", Speed: str + "km", Latencies: message.Latencies{}} //stores info for cassandra write & read
 		cassandraTest(&cassWR)
@@ -71,32 +70,32 @@ func simulateWrites(id, rowCount int) {
 		s = append(s, cassWR)
 
 		if len(s)%rowCount == 0 {
-			metadata := hash(s)
+			metadata := hash(s)           //hashes recent cassandra writes
 			gethWR := message.Latencies{} //stores info for geth write & read
 			gethTest("ws://"+ip+":8101", metadata, &gethWR)
 			gethLatencies = append(gethLatencies, gethWR)
 			fmt.Printf("Go-Ethereum - write latency: %vms, read latency: %vms\n", gethWR.WriteLatency, gethWR.ReadLatency)
 			s = []message.Test_sensor{}
-			row = 0
+			row = 0 //will overwrite rows 1..rowCount
 		}
 
-		if write == 100 {
+		if write == 100 { //exit after 100 writes
 			break
 		}
-		time.Sleep(time.Duration(randI) * time.Millisecond) //sleeps for 1 - 3 seconds
+		time.Sleep(time.Duration(randI) * time.Millisecond) //sleeps for 1 to 3 seconds
 	}
 
-	cassWriteLatency, cassReadLatency := average(cassLatencies)
-	gethWriteLatency, gethReadLatency := average(gethLatencies)
+	cassWriteLatency, cassReadLatency := average(cassLatencies) //average of all cassandra write and read latencies
+	gethWriteLatency, gethReadLatency := average(gethLatencies) //average of all geth write and read latencies
 	writeString := fmt.Sprintf("CassW: %v\nCassR: %v\nGethW: %v\nGethR: %v", cassWriteLatency, cassReadLatency, gethWriteLatency, gethReadLatency)
 
-	f, err := os.OpenFile("avg-latencies.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile("avg-latencies.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644) //creates file if it doesn't exist
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	_, err = f.WriteString(writeString)
+	_, err = f.WriteString(writeString) //writes latency data to file
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -143,7 +142,10 @@ func gethTest(connect string, msg [32]byte, gethWR *message.Latencies) {
 
 	start = time.Now().UnixNano() / 1000000
 	tx = fmt.Sprintf("eth.getTransaction(%v)", transactionID)
-	exec.Command("geth", "attach", connect, "--exec", tx).Run()
+	err = exec.Command("geth", "attach", connect, "--exec", tx).Run() //reads transaction
+	if err != nil {
+		fmt.Println("Transaction not found...")
+	}
 
 	gethWR.ReadLatency = int(time.Now().UnixNano()/1000000 - start)
 }
