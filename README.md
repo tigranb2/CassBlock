@@ -1,6 +1,7 @@
 # CassBlock
 ## Installation
-Note: this program has only been tested on Ubuntu 18.04 LTS.           
+_This program has only been tested on Ubuntu 18.04 LTS._     
+     
 Execute line by line:
 ```shell
 sudo su 
