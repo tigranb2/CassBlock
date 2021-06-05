@@ -36,4 +36,4 @@ Execute:
 # description is used to name the file where performance data is stored ({description}-data.txt)
 ```
 
-After running, the average, median, and 99th percentile of the throughputs and write/read latencies for Cassandra and Go-Ethereum will be printed
+After running, the average, median, and 99th percentile of the throughputs and write/read latencies for Cassandra and Go-Ethereum for each node are calculated and printed
