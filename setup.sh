@@ -43,6 +43,7 @@ go get github.com/gocql/gocql
 
 apt install python-pip
 pip install ccm
+pip3 install numpy
 
 cd ~/go/src/CassBlock
 
