@@ -105,7 +105,7 @@ def main():
         delay_command(i, gen_enode)
         delay_command(i, node_start.format(n=i))
 
-    sleep(20)
+    sleep(60)
 
     # starts writes
     for i in range(1, node_count):
