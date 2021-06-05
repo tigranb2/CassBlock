@@ -6,7 +6,7 @@ sudo su
 mkdir ~/go/src -p
 cd ~/go/src # install directory 
 git clone https://github.com/tigranb2/CassBlock.git
-cd CassBLock && . setup.sh # installs dependencies (Go, Python, Geth, Mininet)
+cd CassBlock && . setup.sh # installs dependencies (Go, Python, Geth, Mininet)
 ```
 
 ## Usage
