@@ -23,6 +23,11 @@ def average(data):
 
 def main():
     f = read_file("avg-latencies.txt")
+    throughputs = extract_data(f, "Throughput:")
+    throughput_avg = round(average(throughputs), 2)
+    throughput_median = round(percentile(array(throughputs), 50), 2)
+    throughput_99th = round(percentile(array(throughputs), 99), 2)
+
     cass_writes = extract_data(f, "CassW:")
     cass_write_avg = round(average(cass_writes), 2)
     cass_write_median = round(percentile(array(cass_writes), 50), 2)
@@ -43,12 +48,13 @@ def main():
     geth_read_median = round(percentile(array(geth_reads), 50), 2)
     geth_read_99th = round(percentile(array(geth_reads), 99), 2)
 
-    data = f"Cassandra:\n        " \
-           f"Writes:    avg: {cass_write_avg}    median: {cass_write_median}    99th: {cass_write_99th}\n        " \
-           f"Reads:     avg: {cass_read_avg}    median: {cass_read_median}    99th: {cass_read_99th}\n" \
+    data = f"Throughput: avg: {throughput_avg}     median: {throughput_median}     99th: {throughput_99th}\n" \
+           f"Cassandra:\n        " \
+           f"Writes:     avg: {cass_write_avg}     median: {cass_write_median}     99th: {cass_write_99th}\n        " \
+           f"Reads:      avg: {cass_read_avg}     median: {cass_read_median}     99th: {cass_read_99th}\n" \
            f"Go-Ethereum:\n        " \
-           f"Writes:    avg: {geth_write_avg}    median: {geth_write_median}    99th: {geth_write_99th}\n        " \
-           f"Reads:     avg: {geth_read_avg}    median: {geth_read_median}    99th: {geth_read_99th}\n"
+           f"Writes:     avg: {geth_write_avg}     median: {geth_write_median}     99th: {geth_write_99th}\n        " \
+           f"Reads:      avg: {geth_read_avg}     median: {geth_read_median}     99th: {geth_read_99th}\n"
 
     file_name = f"{description}-data.txt"
     f = open(file_name, "a")

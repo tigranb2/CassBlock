@@ -26,8 +26,11 @@ CREATE TABLE test_sensor (
    ) ;
 */
 
-var Session *gocql.Session
-var ip string
+var (
+	Session *gocql.Session
+	ip string
+	thinkTime, thinkTimeJitter int
+)
 
 func main() {
 	arguments := os.Args
@@ -37,6 +40,8 @@ func main() {
 	}
 	id, _ := strconv.Atoi(arguments[1])       //numbers of rows per sensor
 	rowCount, _ := strconv.Atoi(arguments[2]) //numbers of rows per sensor
+	thinkTime, _ = strconv.Atoi(arguments[3]) //time between messages
+	thinkTimeJitter, _ = strconv.Atoi(arguments[4]) //variation in thinkTime
 	ip = fmt.Sprintf("10.0.0.%v", id)
 
 	cassandraInit(ip) //connect to cassandra database
@@ -54,17 +59,23 @@ func cassandraInit(CONNECT string) {
 }
 
 func simulateWrites(id, rowCount int) {
-	var cassLatencies, gethLatencies []message.Latencies
-	var s []message.Test_sensor
-	write, row, randI := 0, 0, 0
+	var (
+		cassLatencies, gethLatencies []message.Latencies
+		s []message.Test_sensor
+		throughput float32
+	)
+	operations, writeSet, row, jitter := 0, 0, 0, 0
 	fmt.Println("Generating data...")
+	start := time.Now().Unix()
 	for {
 		row++
-		write++
-		randI = rand.Intn(3000-1000) + 1000
-		str := strconv.Itoa(randI / 1000)                                                                                                  //returns string of random int
+		writeSet++
+		jitter = rand.Intn(thinkTimeJitter + thinkTimeJitter) - thinkTimeJitter //generates int in [-thinkTimeJitter, thinkTimeJitter]
+		str := strconv.Itoa(jitter) //returns string of random int
+
 		cassWR := message.Test_sensor{Sensor_id: id, Row: row, Temperature: str + "km", Speed: str + "km", Latencies: message.Latencies{}} //stores info for cassandra write & read
-		cassandraTest(&cassWR)
+		cassandraTest(&cassWR) //writes to Cassandra, reads written row
+		operations += 2
 		fmt.Printf("Sensor: %v, Row: %v, write latency: %vms, read latency: %vms\n", id, row, cassWR.Latencies.WriteLatency, cassWR.Latencies.ReadLatency)
 		cassLatencies = append(cassLatencies, cassWR.Latencies)
 		s = append(s, cassWR)
@@ -72,22 +83,25 @@ func simulateWrites(id, rowCount int) {
 		if len(s)%rowCount == 0 {
 			metadata := hash(s)           //hashes recent cassandra writes
 			gethWR := message.Latencies{} //stores info for geth write & read
-			gethTest("ws://"+ip+":8101", metadata, &gethWR)
-			gethLatencies = append(gethLatencies, gethWR)
+			gethTest("ws://"+ip+":8101", metadata, &gethWR) //writes to Geth, reads written transaction
+			operations += 2
 			fmt.Printf("Go-Ethereum - write latency: %vms, read latency: %vms\n\n", gethWR.WriteLatency, gethWR.ReadLatency)
+			gethLatencies = append(gethLatencies, gethWR)
 			s = []message.Test_sensor{}
-			row = 0 //will overwrite rows 1..rowCount
+			row = 0 //to overwrite rows 1..rowCount
 		}
 
-		if write == 100 { //exit after 100 writes
+		if writeSet == 100 { //exit after writing all rows 100 times to Cassandra
+			timeTaken := time.Now().Unix() - start
+			throughput = float32(int64(operations)/timeTaken)
 			break
 		}
-		time.Sleep(time.Duration(randI) * time.Millisecond) //sleeps for 1 to 3 seconds
+		time.Sleep(time.Duration(thinkTime+jitter) * time.Millisecond)
 	}
 
 	cassWriteLatency, cassReadLatency := average(cassLatencies) //average of all cassandra write and read latencies
 	gethWriteLatency, gethReadLatency := average(gethLatencies) //average of all geth write and read latencies
-	writeString := fmt.Sprintf("CassW: %v\nCassR: %v\nGethW: %v\nGethR: %v\n", cassWriteLatency, cassReadLatency, gethWriteLatency, gethReadLatency)
+	writeString := fmt.Sprintf("Throughput: %v\nCassW: %v\nCassR: %v\nGethW: %v\nGethR: %v\n", throughput, cassWriteLatency, cassReadLatency, gethWriteLatency, gethReadLatency)
 
 	f, err := os.OpenFile("avg-latencies.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644) //creates file if it doesn't exist
 	if err != nil {

@@ -16,6 +16,8 @@ from geth import *
 
 node_count = int(argv[1])
 row_count = int(argv[2])
+think_time = int(argv[3])
+think_time_jiiter = int(argv[4])
 
 
 def get_topology():
@@ -107,10 +109,10 @@ def main():
 
     # starts writes
     for i in range(1, node_count):
-        cmd = f"./simulateWrites {i} {row_count} &"
+        cmd = f"./simulateWrites {i} {row_count} {think_time} {think_time_jiiter} &"
         delay_command(i, cmd)
 
-    cmd = f"./simulateWrites {node_count} {row_count}"
+    cmd = f"./simulateWrites {node_count} {row_count} {think_time} {think_time_jiiter}"
     delay_command(node_count, cmd)
 
     # stop the network
