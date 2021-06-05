@@ -30,6 +30,7 @@ Execute:
 ```shell
 . run.sh {num_of_nodes} {num_of_rows} {think_time} {think_time_variation} {description} # ex: . run.sh 50 10 80 20 50_node_10_row
 # num_of_nodes is the number of sensors, Cassandra nodes, and geth nodes (same as number in config.yaml)
+# num_of_rows is the number of rows each sensor will have in Cassandra
 # think_time is the time between writes to Cassandra, in milliseconds
 # think_time_varaition is the amount of time think_time may vary by at most
 # description is used to name the file where performance data is stored ({description}-data.txt)
