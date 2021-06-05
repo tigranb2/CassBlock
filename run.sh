@@ -1,4 +1,4 @@
-if [[ -z $3 ]]; then
+if [[ -z $5 ]]; then
   echo "Please specify node count, row count, think time (ms), think time varaition (ms), and a test description..."
 else
   rm -r ~/.ccm
