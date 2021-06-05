@@ -48,11 +48,11 @@ def main():
     geth_read_median = round(percentile(array(geth_reads), 50), 2)
     geth_read_99th = round(percentile(array(geth_reads), 99), 2)
 
-    data = f"\nThroughput:        avg: {throughput_avg}    median: {throughput_median}    99th: {throughput_99th}\n" \
-           f"Cassandra:\n        " \
+    data = f"\nThroughput (op/s): avg: {throughput_avg}    median: {throughput_median}    99th: {throughput_99th}\n" \
+           f"Cassandra (ms):\n        " \
            f"Writes:    avg: {cass_write_avg}    median: {cass_write_median}    99th: {cass_write_99th}\n        " \
            f"Reads:     avg: {cass_read_avg}    median: {cass_read_median}    99th: {cass_read_99th}\n" \
-           f"Go-Ethereum:\n        " \
+           f"Go-Ethereum (ms):\n        " \
            f"Writes:    avg: {geth_write_avg}    median: {geth_write_median}    99th: {geth_write_99th}\n        " \
            f"Reads:     avg: {geth_read_avg}    median: {geth_read_median}    99th: {geth_read_99th}\n\n"
 
