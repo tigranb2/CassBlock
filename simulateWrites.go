@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
+	"sort"
 	"strconv"
 	"time"
 )
@@ -20,16 +21,20 @@ CREATE KEYSPACE test_keyspace WITH replication = {'class': 'SimpleStrategy', 're
 CREATE TABLE test_sensor (
      sensor_id int,
 	 row int,
-     temperature text,
-     speed text,
+     writeset int,
+     speed double,
      PRIMARY KEY ((sensor_id), row)
+WITH CLUSTERING ORDER BY (row DESC)
    ) ;
 */
 
 var (
-	Session *gocql.Session
-	ip string
-	thinkTime, thinkTimeJitter int
+	Session                                                        *gocql.Session
+	ip                                                             string
+	operations, writeSet                                           int
+	lambda                                                         float64
+	cassRLatencies, gethRLatencies, cassWLatencies, gethWLatencies []int
+	gethTxs                                                        []string
 )
 
 func main() {
@@ -38,10 +43,9 @@ func main() {
 		fmt.Println("Please specify sensor id, row count...")
 		return
 	}
-	id, _ := strconv.Atoi(arguments[1])       //numbers of rows per sensor
-	rowCount, _ := strconv.Atoi(arguments[2]) //numbers of rows per sensor
-	thinkTime, _ = strconv.Atoi(arguments[3]) //time between messages
-	thinkTimeJitter, _ = strconv.Atoi(arguments[4]) //variation in thinkTime
+	id, _ := strconv.Atoi(arguments[1])              //numbers of rows per sensor
+	rowCount, _ := strconv.Atoi(arguments[2])        //numbers of rows per sensor
+	lambda, _ = strconv.ParseFloat(arguments[3], 64) //time between messages
 	ip = fmt.Sprintf("10.0.0.%v", id)
 
 	cassandraInit(ip) //connect to cassandra database
@@ -60,50 +64,195 @@ func cassandraInit(CONNECT string) {
 
 func simulateWrites(id, rowCount int) {
 	var (
-		cassLatencies, gethLatencies []message.Latencies
-		s []message.Test_sensor
-		throughput float32
+		currentWrites []message.Test_sensor
+		throughput    float32
 	)
-	operations, writeSet, row, jitter := 0, 0, 0, 0
+	row := 0
+
 	fmt.Println("Generating data...")
 	start := time.Now().Unix()
+	go read(id, rowCount) //goroutine that reads randomly
 	for {
 		row++
 		writeSet++
-		jitter = rand.Intn(thinkTimeJitter + thinkTimeJitter) - thinkTimeJitter //generates int in [-thinkTimeJitter, thinkTimeJitter]
-		str := strconv.Itoa(jitter) //returns string of random int
+		value := rand.NormFloat64() //returns random value from N(0, 1)
 
-		cassWR := message.Test_sensor{Sensor_id: id, Row: row, Temperature: str + "km", Speed: str + "km", Latencies: message.Latencies{}} //stores info for cassandra write & read
-		cassandraTest(&cassWR) //writes to Cassandra, reads written row
-		operations += 2
-		fmt.Printf("Sensor: %v, Row: %v, write latency: %vms, read latency: %vms\n", id, row, cassWR.Latencies.WriteLatency, cassWR.Latencies.ReadLatency)
-		cassLatencies = append(cassLatencies, cassWR.Latencies)
-		s = append(s, cassWR)
+		data := message.Test_sensor{Sensor_id: id, Row: row, Writeset: writeSet, Speed: value} //stores info for cassandra write & read
+		cassWLatency := cassandraWrite(data)                                                   //writes to Cassandra
+		fmt.Printf("Cassandra write - Sensor: %v, Row: %v, latency: %vms", id, row, cassWLatency)
+		cassWLatencies = append(cassWLatencies, cassWLatency)
+		currentWrites = append(currentWrites, data)
 
-		if len(s)%rowCount == 0 {
-			metadata := hash(s)           //hashes recent cassandra writes
-			gethWR := message.Latencies{} //stores info for geth write & read
-			gethTest("ws://"+ip+":8101", metadata, &gethWR) //writes to Geth, reads written transaction
-			operations += 2
-			fmt.Printf("Go-Ethereum - write latency: %vms, read latency: %vms\n\n", gethWR.WriteLatency, gethWR.ReadLatency)
-			gethLatencies = append(gethLatencies, gethWR)
-			s = []message.Test_sensor{}
+		if len(currentWrites)%rowCount == 0 {
+			min, max := extrema(currentWrites)
+			metadata := hash([]message.Test_sensor{min, max})       //hashes min and max writes
+			gethWLatency := gethWrite("ws://"+ip+":8101", metadata) //writes to Geth
+			fmt.Printf("Go-Ethereum write - latency: %vms\n\n", gethWLatency)
+			gethWLatencies = append(gethWLatencies, gethWLatency)
+
+			currentWrites = []message.Test_sensor{}
 			row = 0 //to overwrite rows 1..rowCount
 		}
 
 		if writeSet == 100 { //exit after writing all rows 100 times to Cassandra
 			timeTaken := time.Now().Unix() - start
-			throughput = float32(int64(operations)/timeTaken)
+			throughput = float32(int64(operations) / timeTaken)
 			break
 		}
-		time.Sleep(time.Duration(thinkTime+jitter) * time.Millisecond)
+
+		sleepTime := rand.ExpFloat64() / lambda //return value from exponential dist.
+		time.Sleep(time.Duration(sleepTime) * time.Millisecond)
 	}
 
-	cassWriteLatency, cassReadLatency := average(cassLatencies) //average of all cassandra write and read latencies
-	gethWriteLatency, gethReadLatency := average(gethLatencies) //average of all geth write and read latencies
+	fmt.Println(throughput)
+	cassWriteLatency := average(cassWLatencies)
+	cassReadLatency := average(cassRLatencies)
+	gethWriteLatency := average(gethWLatencies)
+	gethReadLatency := average(gethRLatencies)
 	writeString := fmt.Sprintf("Throughput: %v\nCassW: %v\nCassR: %v\nGethW: %v\nGethR: %v\n", throughput, cassWriteLatency, cassReadLatency, gethWriteLatency, gethReadLatency)
+	writeToFile("avg-latencies.txt", writeString) //write data to avg-latencies.txt
+}
 
-	f, err := os.OpenFile("avg-latencies.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644) //creates file if it doesn't exist
+func read(id, rowCount int) {
+	var currentReads []message.Test_sensor
+	for {
+		if writeSet > 1 { //read from cassandra
+			iaTime := rand.ExpFloat64() / lambda //return value from exponential dist.
+			time.Sleep(time.Duration(iaTime) * time.Millisecond)
+
+			start := time.Now().UnixNano() / 1000000
+
+			m := map[string]interface{}{}
+			var rows, previousRows []message.Test_sensor
+			iterable := Session.Query("SELECT * FROM test_sensor WHERE sensor_id = ?;", id).Iter() //read all cassandra rows for this sensor
+			for iterable.MapScan(m) {
+				fmt.Println("m", m)
+				row := message.Test_sensor{m["sensor_id"].(int), m["row"].(int), m["writeset"].(int), m["speed"].(float64)}
+				rows = append(rows, row)
+				m = map[string]interface{}{}
+			}
+
+			newest := message.Test_sensor{}
+			for _, row := range rows {
+				if row.Writeset < writeSet {
+					previousRows = append(previousRows, row) //collection of rows from previous set
+				} else if row.Writeset == writeSet {
+					newest = row //latest write
+					break
+				}
+			}
+
+			if newest.Sensor_id != 0 { //latest write found
+				previousSetMedian := median(previousRows)
+				if newest.Speed >= previousSetMedian-2 && newest.Speed <= previousSetMedian+2 { //check if newest write is within 2 z-score of previous set median
+					cassRLatency := int(time.Now().UnixNano()/1000000 - start) //cassandra read latency
+					cassRLatencies = append(cassRLatencies, cassRLatency)
+					currentReads = append(currentReads, newest)
+					fmt.Printf("Cassandra read: %v with latency: %vms", newest, cassRLatency)
+				}
+			} else {
+				continue
+			}
+			operations++
+		}
+
+		if len(currentReads)%rowCount == 0 { //read from geth
+			start := time.Now().UnixNano() / 1000000
+			rmin, rmax := extrema(currentReads)
+			s := hash([]message.Test_sensor{rmin, rmax})
+			rhash := fmt.Sprintf("%x", s) //hash of min and max values read
+
+			latestTx := gethTxs[len(gethTxs)-1]
+			cmd := fmt.Sprintf("eth.getTransaction(%v)", latestTx)
+			output, err := exec.Command("geth", "attach", "ws://"+ip+":8101", "--exec", cmd).CombinedOutput() //reads transaction
+			if err != nil {
+				fmt.Println("Transaction not found...")
+			}
+			whash := string(output) //hash of min and max values written
+
+			if rhash == whash {
+				gethRLatency := int(time.Now().UnixNano()/1000000 - start) //geth read latency
+				gethRLatencies = append(gethRLatencies, gethRLatency)
+				newest := currentReads[len(currentReads)-1]
+				currentReads = []message.Test_sensor{}
+				fmt.Printf("Go-Ethereum read: %v with latency: %vms", newest, gethRLatency)
+				operations++
+			}
+
+		}
+
+	}
+
+}
+
+func cassandraWrite(data message.Test_sensor) int {
+	start := time.Now().UnixNano() / 1000000
+	//create new row in test_table
+	if err := Session.Query("INSERT INTO test_sensor(sensor_id,row,writeset,speed) VALUES(?, ?, ?, ?)", data.Sensor_id, data.Row, data.Writeset, data.Speed).Exec(); err != nil {
+		fmt.Println(err)
+	}
+	operations++
+	return int(time.Now().UnixNano()/1000000 - start) //write latency
+}
+
+func gethWrite(connect string, msg [32]byte) int {
+	start := time.Now().UnixNano() / 1000000
+	tx := fmt.Sprintf("eth.sendTransaction({from:eth.accounts[0],to:eth.accounts[0],value:1,data:web3.toHex('%v')})", msg) //writes data into geth transaction
+	output, err := exec.Command("geth", "attach", connect, "--exec", tx).CombinedOutput()
+	if err != nil {
+		fmt.Println(err)
+		return 0
+	}
+	transactionID := string(output)
+	gethTxs = append(gethTxs, transactionID)
+	operations++
+	return int(time.Now().UnixNano()/1000000 - start) //write latency
+}
+
+func extrema(arr []message.Test_sensor) (message.Test_sensor, message.Test_sensor) { //calculate rows with min and max speed in array
+	min, max := arr[0], arr[0]
+	for i := 1; i < len(arr); i++ {
+		if arr[i].Speed < min.Speed { 
+			min = arr[i]
+		} else if arr[i].Speed > max.Speed {
+			max = arr[i]
+		}
+	}
+
+	return min, max
+}
+
+func median(arr []message.Test_sensor) float64 { //find median speed value of array
+	var values []float64
+	for _, element := range arr {
+		values = append(values, element.Speed)
+	}
+
+	sort.Float64s(values)
+	if len(values)%2 == 0 {
+		return (values[len(values)/2]+values[(len(values)/2)-1]) / 2
+	} else {
+		return values[(len(values)-1)/2]
+	}
+}
+
+func hash(arr []message.Test_sensor) [32]byte { //return hash of array
+	buf := bytes.Buffer{}
+	gob.NewEncoder(&buf).Encode(arr)
+	return sha256.Sum256(buf.Bytes())
+}
+
+
+func average(arr []int) float32 { //return average of array
+	sum := 0
+	for _, element := range arr {
+		sum += element
+	}
+	return float32(sum) / float32(len(arr))
+}
+
+func writeToFile(file, writeString string) {
+	f, err := os.OpenFile(file, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644) //creates file if it doesn't exist
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -119,65 +268,4 @@ func simulateWrites(id, rowCount int) {
 		fmt.Println(err)
 		return
 	}
-
-}
-
-func cassandraTest(data *message.Test_sensor) {
-	start := time.Now().UnixNano() / 1000000
-	//create new row in test_table
-	if err := Session.Query("INSERT INTO test_sensor(sensor_id,row,temperature,speed) VALUES(?, ?, ?, ?)", data.Sensor_id, data.Row, data.Temperature, data.Speed).Exec(); err != nil {
-		fmt.Println(err)
-	}
-
-	data.Latencies.WriteLatency = int(time.Now().UnixNano()/1000000 - start)
-
-	start = time.Now().UnixNano() / 1000000
-	//read new row in test_table
-	if err := Session.Query(`SELECT speed FROM test_sensor WHERE sensor_id = ? AND row = ?`, data.Sensor_id, data.Row).Exec(); err != nil {
-		fmt.Println(err)
-	}
-
-	data.Latencies.ReadLatency = int(time.Now().UnixNano()/1000000 - start)
-}
-
-func gethTest(connect string, msg [32]byte, gethWR *message.Latencies) {
-	start := time.Now().UnixNano() / 1000000
-	//writes data into geth transaction
-	tx := fmt.Sprintf("eth.sendTransaction({from:eth.accounts[0],to:eth.accounts[0],value:1,data:web3.toHex('%v')})", msg)
-	output, err := exec.Command("geth", "attach", connect, "--exec", tx).CombinedOutput()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	transactionID := string(output)
-	fmt.Print(transactionID)
-	gethWR.WriteLatency = int(time.Now().UnixNano()/1000000 - start)
-
-	start = time.Now().UnixNano() / 1000000
-	tx = fmt.Sprintf("eth.getTransaction(%v)", transactionID)
-	err = exec.Command("geth", "attach", connect, "--exec", tx).Run() //reads transaction
-	if err != nil {
-		fmt.Println("Transaction not found...")
-	}
-
-	gethWR.ReadLatency = int(time.Now().UnixNano()/1000000 - start)
-}
-
-func hash(arr []message.Test_sensor) [32]byte {
-	buf := bytes.Buffer{}
-	gob.NewEncoder(&buf).Encode(arr)
-	return sha256.Sum256(buf.Bytes())
-}
-
-func average(arr []message.Latencies) (float32, float32) {
-	var writeSum, readSum int
-	for _, element := range arr {
-		writeSum += element.WriteLatency
-		readSum += element.ReadLatency
-	}
-
-	avgWriteLatency := float32(writeSum) / float32(len(arr))
-	avgReadLatency := float32(readSum) / float32(len(arr))
-	return avgWriteLatency, avgReadLatency
 }

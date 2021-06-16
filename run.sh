@@ -1,5 +1,5 @@
-if [[ -z $5 ]]; then
-  echo "Please specify node count, row count, think time (ms), think time varaition (ms), and a test description..."
+if [[ -z $3 ]]; then
+  echo "Please specify node count, row count, rate parameter (λ), and test description.."
 else
   rm -r ~/.ccm
   rm avg-latencies.txt
@@ -8,9 +8,9 @@ else
   chmod 700 gethrun.sh
   chmod 700 simulateWrites
   . gethrun.sh $1
-  python3 start.py $1 $2 $3 $4
-  python3 analysis.py $5
-  cat $5-data.txt
+  python3 start.py $1 $2 $3
+  python3 analysis.py $4
+  cat $4-data.txt
   rm -r ~/go/src/CassBlock/blockchain/
   killall java
   killall geth
