@@ -1,6 +1,8 @@
 from sys import argv
 from numpy import percentile, array
-description = str(argv[1])
+
+mode = str(argv[1])
+description = str(argv[2])
 
 
 def read_file(file):
@@ -18,7 +20,7 @@ def extract_data(f, string_to_search):
 
 
 def average(data):
-    return sum(data)/len(data)
+    return sum(data) / len(data)
 
 
 def main():
@@ -38,26 +40,33 @@ def main():
     cass_read_median = round(percentile(array(cass_reads), 50), 2)
     cass_read_99th = round(percentile(array(cass_reads), 99), 2)
 
-    geth_writes = extract_data(f, "GethW:")
-    geth_write_avg = round(average(geth_writes), 2)
-    geth_write_median = round(percentile(array(geth_writes), 50), 2)
-    geth_write_99th = round(percentile(array(geth_writes), 99), 2)
+    if mode == "-g":
+        geth_writes = extract_data(f, "GethW:")
+        geth_write_avg = round(average(geth_writes), 2)
+        geth_write_median = round(percentile(array(geth_writes), 50), 2)
+        geth_write_99th = round(percentile(array(geth_writes), 99), 2)
 
-    geth_reads = extract_data(f, "GethR:")
-    geth_read_avg = round(average(geth_reads), 2)
-    geth_read_median = round(percentile(array(geth_reads), 50), 2)
-    geth_read_99th = round(percentile(array(geth_reads), 99), 2)
+        geth_reads = extract_data(f, "GethR:")
+        geth_read_avg = round(average(geth_reads), 2)
+        geth_read_median = round(percentile(array(geth_reads), 50), 2)
+        geth_read_99th = round(percentile(array(geth_reads), 99), 2)
 
-    data = f"\nThroughput (op/s): avg: {throughput_avg}    median: {throughput_median}    99th: {throughput_99th}\n" \
-           f"Cassandra (ms):\n        " \
-           f"Writes:    avg: {cass_write_avg}    median: {cass_write_median}    99th: {cass_write_99th}\n        " \
-           f"Reads:     avg: {cass_read_avg}    median: {cass_read_median}    99th: {cass_read_99th}\n" \
-           f"Go-Ethereum (ms):\n        " \
-           f"Writes:    avg: {geth_write_avg}    median: {geth_write_median}    99th: {geth_write_99th}\n        " \
-           f"Reads:     avg: {geth_read_avg}    median: {geth_read_median}    99th: {geth_read_99th}\n\n"
+        w = f"\nThroughput (op/s): avg: {throughput_avg}    median: {throughput_median}    99th: {throughput_99th}\n" \
+            f"Cassandra (ms):\n        " \
+            f"Writes:    avg: {cass_write_avg}    median: {cass_write_median}    99th: {cass_write_99th}\n        " \
+            f"Reads:     avg: {cass_read_avg}    median: {cass_read_median}    99th: {cass_read_99th}\n" \
+            f"Go-Ethereum (ms):\n        " \
+            f"Writes:    avg: {geth_write_avg}    median: {geth_write_median}    99th: {geth_write_99th}\n        " \
+            f"Reads:     avg: {geth_read_avg}    median: {geth_read_median}    99th: {geth_read_99th}\n\n"
+    else:
+        w = f"\nThroughput (op/s): avg: {throughput_avg}    median: {throughput_median}    99th: {throughput_99th}\n" \
+            f"Cassandra (ms):\n        " \
+            f"Writes:    avg: {cass_write_avg}    median: {cass_write_median}    99th: {cass_write_99th}\n        " \
+            f"Reads:     avg: {cass_read_avg}    median: {cass_read_median}    99th: {cass_read_99th}\n\n"
 
     file_name = f"{description}-data.txt"
     f = open(file_name, "a")
-    f.write(data)
+    f.write(w)
+
 
 main()

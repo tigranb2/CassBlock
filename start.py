@@ -17,6 +17,7 @@ from geth import *
 node_count = int(argv[1])
 row_count = int(argv[2])
 rate_parameter = int(argv[3])
+mode = str(argv[4])
 
 
 def get_topology():
@@ -108,10 +109,10 @@ def main():
 
     # starts writes
     for i in range(1, node_count):
-        cmd = f"./simulateWrites {i} {row_count} {rate_parameter} &"
+        cmd = f"./simulateWrites {i} {row_count} {rate_parameter} {mode} &"
         delay_command(i, cmd)
 
-    cmd = f"./simulateWrites {node_count} {row_count} {rate_parameter}"
+    cmd = f"./simulateWrites {node_count} {row_count} {rate_parameter} {mode}"
     delay_command(node_count, cmd)
 
     # stop the network
