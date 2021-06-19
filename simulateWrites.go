@@ -20,7 +20,7 @@ CREATE KEYSPACE test_keyspace WITH replication = {'class': 'SimpleStrategy', 're
 CREATE TABLE test_sensor (
      sensor_id int,
 	 row int,
-     writeset int,
+     round int,
      speed double,
      PRIMARY KEY ((sensor_id), row)
 WITH CLUSTERING ORDER BY (row DESC)
@@ -30,7 +30,7 @@ WITH CLUSTERING ORDER BY (row DESC)
 var (
 	Session                                                        *gocql.Session
 	ip                                                             string
-	operations, writeSet                                           int
+	operations, round                                              int
 	lambda                                                         float64
 	cassRLatencies, gethRLatencies, cassWLatencies, gethWLatencies []int
 	gethTxs                                                        []string
@@ -46,7 +46,7 @@ func main() {
 	id, _ := strconv.Atoi(arguments[1])              //numbers of rows per sensor
 	rowCount, _ := strconv.Atoi(arguments[2])        //numbers of rows per sensor
 	lambda, _ = strconv.ParseFloat(arguments[3], 64) //time between messages
-	gethMode = arguments[4] == "-g" //determines whether geth will be used or not
+	gethMode = arguments[4] == "-g"                  //determines whether geth will be used or not
 
 	ip = fmt.Sprintf("10.0.0.%v", id)
 
@@ -70,17 +70,17 @@ func simulateWrites(id, rowCount int) {
 		throughput    float32
 	)
 	row := 0
-	writeSet = 1
 
 	fmt.Println("Generating data...")
 	start := time.Now().Unix()
 	go read(id, rowCount) //goroutine that reads randomly
 	for {
 		row++
+		round++
 		value := rand.NormFloat64() //returns random value from N(0, 1)
 
-		data := message.Test_sensor{Sensor_id: id, Row: row, Writeset: writeSet, Speed: value} //stores info for cassandra write & read
-		cassWLatency := cassandraWrite(data)                                                   //writes to Cassandra
+		data := message.Test_sensor{Sensor_id: id, Row: row, Round: round, Speed: value} //stores info for cassandra write & read
+		cassWLatency := cassandraWrite(data)                                                //writes to Cassandra
 		fmt.Printf("Cassandra write - Sensor: %v, Row: %v, latency: %vms\n", id, row, cassWLatency)
 		cassWLatencies = append(cassWLatencies, cassWLatency)
 		currentWrites = append(currentWrites, data)
@@ -94,14 +94,12 @@ func simulateWrites(id, rowCount int) {
 
 			currentWrites = []message.Test_sensor{}
 			row = 0 //to overwrite rows 1..rowCount
-			writeSet++
 		} else if len(currentWrites)%rowCount == 0 {
 			currentWrites = []message.Test_sensor{}
 			row = 0 //to overwrite rows 1..rowCount
-			writeSet++
 		}
 
-		if writeSet == 100 { //exit after writing all rows 100 times to Cassandra
+		if round == 100 { //exit after writing 100 times to Cassandra
 			timeTaken := time.Now().Unix() - start
 			throughput = float32(int64(operations) / timeTaken)
 			break
@@ -128,7 +126,7 @@ func simulateWrites(id, rowCount int) {
 func read(id, rowCount int) {
 	var currentReads []message.Test_sensor
 	for {
-		if writeSet > 1 { //read from cassandra
+		if round > 1 { //read from cassandra
 			iaTime := rand.ExpFloat64() / lambda //return value from exponential dist.
 			time.Sleep(time.Duration(iaTime) * time.Millisecond)
 
@@ -139,18 +137,17 @@ func read(id, rowCount int) {
 			iterable := Session.Query("SELECT * FROM test_sensor WHERE sensor_id = ?;", id).Iter() //read all cassandra rows for this sensor
 			for iterable.MapScan(m) {
 				fmt.Println("m", m)
-				row := message.Test_sensor{Sensor_id: m["sensor_id"].(int), Row: m["row"].(int), Writeset: m["writeset"].(int), Speed: m["speed"].(float64)}
+				row := message.Test_sensor{Sensor_id: m["sensor_id"].(int), Row: m["row"].(int), Round: m["round"].(int), Speed: m["speed"].(float64)}
 				rows = append(rows, row)
 				m = map[string]interface{}{}
 			}
 
 			latest := message.Test_sensor{}
 			for _, row := range rows {
-				if row.Writeset < writeSet {
-					previousRows = append(previousRows, row) //collection of rows from previous set
-				} else if row.Writeset == writeSet {
+				if row.Round < round {
+					previousRows = append(previousRows, row) //collection of rows from previous rounds
+				} else if row.Round == round {
 					latest = row //latest write
-					break
 				}
 			}
 
@@ -160,7 +157,7 @@ func read(id, rowCount int) {
 					cassRLatency := int(time.Now().UnixNano()/1000000 - start) //cassandra read latency
 					cassRLatencies = append(cassRLatencies, cassRLatency)
 					currentReads = append(currentReads, latest)
-					fmt.Printf("Cassandra read: %v with latency: %vms\n", latest, cassRLatency)
+					fmt.Printf("Cassandra read: %v with latency: %vms\n", latest.Speed, cassRLatency)
 				}
 			} else {
 				continue
@@ -168,7 +165,7 @@ func read(id, rowCount int) {
 			operations++
 		}
 
-		if gethMode && len(currentReads)%rowCount == 0 { //read from geth
+		if gethMode && len(currentReads)%rowCount == 0 && len(currentReads) > 0 { //read from geth
 			start := time.Now().UnixNano() / 1000000
 			latest := currentReads[len(currentReads)-1] //latest read from cassandra
 
@@ -179,6 +176,7 @@ func read(id, rowCount int) {
 				fmt.Println("Transaction not found...")
 			}
 			data := decode(output) //struct w/ min and max values written
+			fmt.Printf("%+v\n", data)
 			min := data.Min
 			max := data.Max
 
@@ -197,7 +195,7 @@ func read(id, rowCount int) {
 func cassandraWrite(data message.Test_sensor) int {
 	start := time.Now().UnixNano() / 1000000
 	//create new row in test_table
-	if err := Session.Query("INSERT INTO test_sensor(sensor_id,row,writeset,speed) VALUES(?, ?, ?, ?)", data.Sensor_id, data.Row, data.Writeset, data.Speed).Exec(); err != nil {
+	if err := Session.Query("INSERT INTO test_sensor(sensor_id,row,round,speed) VALUES(?, ?, ?, ?)", data.Sensor_id, data.Row, data.Round, data.Speed).Exec(); err != nil {
 		fmt.Println(err)
 	}
 	operations++
