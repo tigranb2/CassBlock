@@ -70,18 +70,18 @@ func simulateWrites(id, rowCount int) {
 		throughput    float32
 	)
 	row := 0
+	writeSet = 1
 
 	fmt.Println("Generating data...")
 	start := time.Now().Unix()
 	go read(id, rowCount) //goroutine that reads randomly
 	for {
 		row++
-		writeSet++
 		value := rand.NormFloat64() //returns random value from N(0, 1)
 
 		data := message.Test_sensor{Sensor_id: id, Row: row, Writeset: writeSet, Speed: value} //stores info for cassandra write & read
 		cassWLatency := cassandraWrite(data)                                                   //writes to Cassandra
-		fmt.Printf("Cassandra write - Sensor: %v, Row: %v, latency: %vms", id, row, cassWLatency)
+		fmt.Printf("Cassandra write - Sensor: %v, Row: %v, latency: %vms\n", id, row, cassWLatency)
 		cassWLatencies = append(cassWLatencies, cassWLatency)
 		currentWrites = append(currentWrites, data)
 
@@ -94,6 +94,11 @@ func simulateWrites(id, rowCount int) {
 
 			currentWrites = []message.Test_sensor{}
 			row = 0 //to overwrite rows 1..rowCount
+			writeSet++
+		} else if len(currentWrites)%rowCount == 0 {
+			currentWrites = []message.Test_sensor{}
+			row = 0 //to overwrite rows 1..rowCount
+			writeSet++
 		}
 
 		if writeSet == 100 { //exit after writing all rows 100 times to Cassandra
@@ -155,7 +160,7 @@ func read(id, rowCount int) {
 					cassRLatency := int(time.Now().UnixNano()/1000000 - start) //cassandra read latency
 					cassRLatencies = append(cassRLatencies, cassRLatency)
 					currentReads = append(currentReads, latest)
-					fmt.Printf("Cassandra read: %v with latency: %vms", latest, cassRLatency)
+					fmt.Printf("Cassandra read: %v with latency: %vms\n", latest, cassRLatency)
 				}
 			} else {
 				continue
@@ -180,15 +185,13 @@ func read(id, rowCount int) {
 			if latest.Speed >= min && latest.Speed <= max { //basic outlier test
 				gethRLatency := int(time.Now().UnixNano()/1000000 - start) //geth read latency
 				gethRLatencies = append(gethRLatencies, gethRLatency)
-				currentReads = []message.Test_sensor{}
-				fmt.Printf("Go-Ethereum read: %v with latency: %vms", latest, gethRLatency)
+				fmt.Printf("Go-Ethereum read: %v with latency: %vms\n", latest, gethRLatency)
 				operations++
 			}
 
+			currentReads = []message.Test_sensor{}
 		}
-
 	}
-
 }
 
 func cassandraWrite(data message.Test_sensor) int {
@@ -249,6 +252,7 @@ func median(arr []message.Test_sensor) float64 { //find median speed value of ar
 	for _, element := range arr {
 		values = append(values, element.Speed)
 	}
+	fmt.Println(values)
 
 	sort.Float64s(values)
 	if len(values)%2 == 0 {
