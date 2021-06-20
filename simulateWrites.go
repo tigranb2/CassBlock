@@ -4,6 +4,7 @@ import (
 	"CassBlock/message"
 	"bytes"
 	"encoding/gob"
+	"encoding/hex"
 	"fmt"
 	"github.com/gocql/gocql"
 	"math/rand"
@@ -106,7 +107,7 @@ func simulateWrites(id, rowCount int) {
 		}
 
 		sleepTime := rand.ExpFloat64() / lambda //return value from exponential dist.
-		time.Sleep(time.Duration(sleepTime) * time.Millisecond)
+		time.Sleep(time.Duration(sleepTime) * time.Second)
 	}
 
 	cassWriteLatency := average(cassWLatencies)
@@ -127,16 +128,12 @@ func read(id, rowCount int) {
 	var currentReads []message.Test_sensor
 	for {
 		if round > 1 { //read from cassandra
-			iaTime := rand.ExpFloat64() / lambda //return value from exponential dist.
-			time.Sleep(time.Duration(iaTime) * time.Millisecond)
-
 			start := time.Now().UnixNano() / 1000000
 
 			m := map[string]interface{}{}
 			var rows, previousRows []message.Test_sensor
 			iterable := Session.Query("SELECT * FROM test_sensor WHERE sensor_id = ?;", id).Iter() //read all cassandra rows for this sensor
 			for iterable.MapScan(m) {
-				fmt.Println("m", m)
 				row := message.Test_sensor{Sensor_id: m["sensor_id"].(int), Row: m["row"].(int), Round: m["round"].(int), Speed: m["speed"].(float64)}
 				rows = append(rows, row)
 				m = map[string]interface{}{}
@@ -165,18 +162,17 @@ func read(id, rowCount int) {
 			operations++
 		}
 
-		if gethMode && len(currentReads)%rowCount == 0 && len(currentReads) > 0 { //read from geth
+		if gethMode && len(currentReads)%rowCount == 0 && len(currentReads) > 0 && len(gethTxs) > 1{ //read from geth
 			start := time.Now().UnixNano() / 1000000
 			latest := currentReads[len(currentReads)-1] //latest read from cassandra
 
 			latestTx := gethTxs[len(gethTxs)-1]
-			cmd := fmt.Sprintf("eth.getTransaction(%v)", latestTx)
+			cmd := fmt.Sprintf("eth.getTransaction(%v).input", latestTx)
 			output, err := exec.Command("geth", "attach", "ws://"+ip+":8101", "--exec", cmd).CombinedOutput() //reads transaction
 			if err != nil {
 				fmt.Println("Transaction not found...")
 			}
-			data := decode(output) //struct w/ min and max values written
-			fmt.Printf("%+v\n", data)
+			data := decode(string(output)) //struct w/ min and max values written
 			min := data.Min
 			max := data.Max
 
@@ -189,6 +185,9 @@ func read(id, rowCount int) {
 
 			currentReads = []message.Test_sensor{}
 		}
+
+		iaTime := rand.ExpFloat64() / lambda //return value from exponential dist.
+		time.Sleep(time.Duration(iaTime) * time.Second)
 	}
 }
 
@@ -202,9 +201,9 @@ func cassandraWrite(data message.Test_sensor) int {
 	return int(time.Now().UnixNano()/1000000 - start) //write latency
 }
 
-func gethWrite(connect string, data []byte) int {
+func gethWrite(connect string, data string) int {
 	start := time.Now().UnixNano() / 1000000
-	tx := fmt.Sprintf("eth.sendTransaction({from:eth.accounts[0],to:eth.accounts[0],value:1,data:web3.toHex('%v')})", data) //writes data into geth transaction
+	tx := fmt.Sprintf("eth.sendTransaction({from:eth.accounts[0],to:eth.accounts[0],value:1,data:'0x%v'})", data) //writes data into geth transaction
 	output, err := exec.Command("geth", "attach", connect, "--exec", tx).CombinedOutput()
 	if err != nil {
 		fmt.Println(err)
@@ -216,17 +215,19 @@ func gethWrite(connect string, data []byte) int {
 	return int(time.Now().UnixNano()/1000000 - start) //write latency
 }
 
-func encode(sensorId int, min, max float64) []byte {
+func encode(sensorId int, min, max float64) string {
 	data := message.BlockchainData{SensorId: sensorId, Min: min, Max: max, Timestamp: time.Now().Unix()}
 	buf := bytes.Buffer{}
 	if err := gob.NewEncoder(&buf).Encode(data); err != nil { //encode struct to byte array
-		return nil
+		return ""
 	}
-	return buf.Bytes()
+	return hex.EncodeToString(buf.Bytes()) //return hex of byte array
 }
 
-func decode(arr []byte) message.BlockchainData {
-	buf := bytes.NewReader(arr)
+func decode(src string) message.BlockchainData {
+	strEnc :=  src[3 : len(src)-1] //remove quotation marks and 0x
+	dataBytes, _:= hex.DecodeString(strEnc)
+	buf := bytes.NewReader(dataBytes)
 	data := message.BlockchainData{}
 	gob.NewDecoder(buf).Decode(&data) //decode byte array to struct
 	return data
@@ -250,7 +251,6 @@ func median(arr []message.Test_sensor) float64 { //find median speed value of ar
 	for _, element := range arr {
 		values = append(values, element.Speed)
 	}
-	fmt.Println(values)
 
 	sort.Float64s(values)
 	if len(values)%2 == 0 {

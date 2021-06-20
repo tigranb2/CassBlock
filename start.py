@@ -98,14 +98,16 @@ def main():
 
     delay_command(1, init_keyspace)
     delay_command(1, init_table)
+    sleep(5)
 
     # starts geth
-    delay_command(1, miner_start)
-    for i in range(2, node_count + 1):
-        delay_command(i, gen_enode)
-        delay_command(i, node_start.format(n=i))
+    if mode == "-g":
+        delay_command(1, miner_start)
+        for i in range(2, node_count + 1):
+            delay_command(i, gen_enode)
+            delay_command(i, node_start.format(n=i))
 
-    sleep(60)
+        sleep(60)
 
     # starts writes
     for i in range(1, node_count):
@@ -114,6 +116,8 @@ def main():
 
     cmd = f"./simulateWrites {node_count} {row_count} {rate_parameter} {mode}"
     delay_command(node_count, cmd)
+
+    sleep(10)
 
     # stop the network
     net.stop()
