@@ -30,7 +30,7 @@ WITH CLUSTERING ORDER BY (row DESC)
 
 var (
 	Session                                                        *gocql.Session
-	ip                                                             string
+	cassIp, gethIp                                                 string
 	operations, round                                              int
 	lambda                                                         float64
 	cassRLatencies, gethRLatencies, cassWLatencies, gethWLatencies []int
@@ -40,18 +40,29 @@ var (
 
 func main() {
 	arguments := os.Args
-	if len(arguments) < 5 {
-		fmt.Println("Please specify node count, row count, rate parameter (λ), and run mode (-c or -g)...")
+	if len(arguments) < 7 {
+		fmt.Println("Please specify sensor node, Cassandra, Go-Ethereum, and row counts, rate parameter (λ), and run mode (-c or -g)...")
 		return
 	}
-	id, _ := strconv.Atoi(arguments[1])              //numbers of rows per sensor
-	rowCount, _ := strconv.Atoi(arguments[2])        //numbers of rows per sensor
-	lambda, _ = strconv.ParseFloat(arguments[3], 64) //time between messages
-	gethMode = arguments[4] == "-g"                  //determines whether geth will be used or not
+	id, _ := strconv.Atoi(arguments[1]) //numbers of rows per sensor
+	cassCount, _ := strconv.Atoi(arguments[2])
+	gethCount, _ := strconv.Atoi(arguments[3])
+	rowCount, _ := strconv.Atoi(arguments[4])        //numbers of rows per sensor
+	lambda, _ = strconv.ParseFloat(arguments[5], 64) //time between messages
+	gethMode = arguments[6] == "-g"                  //determines whether geth will be used or not
 
-	ip = fmt.Sprintf("10.0.0.%v", id)
+	cassNode := id % cassCount
+	if cassNode == 0 {
+		cassNode = cassCount
+	}
+	gethNode := id % gethCount
+	if gethNode == 0 {
+		gethNode = gethCount
+	}
+	cassIp = fmt.Sprintf("10.0.0.%v", cassNode)
+	gethIp = fmt.Sprintf("ws://10.0.0.%v:8101", gethNode)
 
-	cassandraInit(ip) //connect to cassandra database
+	cassandraInit(cassIp) //connect to cassandra database
 	simulateWrites(id, rowCount)
 }
 
@@ -81,7 +92,7 @@ func simulateWrites(id, rowCount int) {
 		value := rand.NormFloat64() //returns random value from N(0, 1)
 
 		data := message.Test_sensor{Sensor_id: id, Row: row, Round: round, Speed: value} //stores info for cassandra write & read
-		cassWLatency := cassandraWrite(data)                                                //writes to Cassandra
+		cassWLatency := cassandraWrite(data)                                             //writes to Cassandra
 		fmt.Printf("Cassandra write - Sensor: %v, Row: %v, latency: %vms\n", id, row, cassWLatency)
 		cassWLatencies = append(cassWLatencies, cassWLatency)
 		currentWrites = append(currentWrites, data)
@@ -89,7 +100,7 @@ func simulateWrites(id, rowCount int) {
 		if gethMode && len(currentWrites)%rowCount == 0 {
 			min, max := extrema(currentWrites)
 			metadata := encode(id, min, max)                        //byte array of data
-			gethWLatency := gethWrite("ws://"+ip+":8101", metadata) //writes to Geth
+			gethWLatency := gethWrite(gethIp, metadata) //writes to Geth
 			fmt.Printf("Go-Ethereum write - latency: %vms\n\n", gethWLatency)
 			gethWLatencies = append(gethWLatencies, gethWLatency)
 
@@ -162,13 +173,13 @@ func read(id, rowCount int) {
 			operations++
 		}
 
-		if gethMode && len(currentReads)%rowCount == 0 && len(currentReads) > 0 && len(gethTxs) > 1{ //read from geth
+		if gethMode && len(currentReads)%rowCount == 0 && len(currentReads) > 0 && len(gethTxs) > 1 { //read from geth
 			start := time.Now().UnixNano() / 1000000
 			latest := currentReads[len(currentReads)-1] //latest read from cassandra
 
 			latestTx := gethTxs[len(gethTxs)-1]
 			cmd := fmt.Sprintf("eth.getTransaction(%v).input", latestTx)
-			output, err := exec.Command("geth", "attach", "ws://"+ip+":8101", "--exec", cmd).CombinedOutput() //reads transaction
+			output, err := exec.Command("geth", "attach", gethIp, "--exec", cmd).CombinedOutput() //reads transaction
 			if err != nil {
 				fmt.Println("Transaction not found...")
 			}
@@ -225,8 +236,8 @@ func encode(sensorId int, min, max float64) string {
 }
 
 func decode(src string) message.BlockchainData {
-	strEnc :=  src[3 : len(src)-1] //remove quotation marks and 0x
-	dataBytes, _:= hex.DecodeString(strEnc)
+	strEnc := src[3 : len(src)-1] //remove quotation marks and 0x
+	dataBytes, _ := hex.DecodeString(strEnc)
 	buf := bytes.NewReader(dataBytes)
 	data := message.BlockchainData{}
 	gob.NewDecoder(buf).Decode(&data) //decode byte array to struct

@@ -15,9 +15,11 @@ from config import conf
 from geth import *
 
 node_count = int(argv[1])
-row_count = int(argv[2])
-rate_parameter = int(argv[3])
-mode = str(argv[4])
+cass_count = int(argv[2])
+geth_count = int(argv[3])
+row_count = int(argv[4])
+rate_parameter = int(argv[5])
+mode = str(argv[6])
 
 
 def get_topology():
@@ -111,10 +113,10 @@ def main():
 
     # starts writes
     for i in range(1, node_count):
-        cmd = f"./simulateWrites {i} {row_count} {rate_parameter} {mode} &"
+        cmd = f"./simulateWrites {i} {cass_count} {geth_count} {row_count} {rate_parameter} {mode} &"
         delay_command(i, cmd)
 
-    cmd = f"./simulateWrites {node_count} {row_count} {rate_parameter} {mode}"
+    cmd = f"./simulateWrites {node_count} {cass_count} {geth_count} {row_count} {rate_parameter} {mode}"
     delay_command(node_count, cmd)
 
     sleep(10)
